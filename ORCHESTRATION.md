@@ -1874,3 +1874,21 @@ RFL-AE v0.1
 ```
 
 The first implementation target should be the **protocol kernel plus event-sourced state machine**, not the LLM agents. Once that kernel is executable, the rest of the system can be attached to it without allowing an agent to redefine the rules of its own execution.
+
+---
+
+**Done — see [PROTOCOL-KERNEL.md](PROTOCOL-KERNEL.md)** (§518–§547, source §§1–§30), which turns
+the protocol specification into an executable state machine: the trust boundary through the
+protocol kernel to the append-only event store and canonical state, the normative
+`Command ≠ Event` distinction, the canonical event envelope with both `state_before` and
+`state_after`, opaque typed IDs, the transition algebra, `ProtocolState`, the deterministic
+reducer, declarative `TransitionSpec` and its eleven preconditions, atomicity with the event as
+commit boundary, optimistic concurrency and the CAS boundary, the `EventStore` trait, the event
+hash chain, structured `ProtocolError`, rejected command versus authorized operation failure, the
+executable migration transition table, the strict verification transition, event-sourced
+projections, snapshotting, the three distinct version axes, event evolution, the
+`PROTO-001`–`PROTO-020` conformance suite, the `ATTACK-001`–`ATTACK-020` adversarial suite, the
+minimal `rfl-protocol` crate, dependency direction without authority recursion, the first
+executable vertical slice, the three protocol theorems, and the resulting separation of semantic,
+protocol, execution, scheduling and release authority. Same provenance convention as
+`VERIFICATION.md`.

@@ -1,0 +1,290 @@
+# Verbatim phrases from the PROTOCOL-KERNEL.md source (source §1-§30).
+# One phrase per line, copied from the SOURCE. Used by audit_file.py --probes.
+The protocol specification becomes an executable state machine.
+The protocol kernel should be deliberately small.
+It should not understand Rust semantics, Linux semantics, LLM reasoning, or scheduling policy.
+Its job is to answer one question:
+Given the current canonical state and a typed request, is this transition authorized and valid, and if so, what canonical events must be appended?
+UNTRUSTED / PROPOSAL SIDE
+RFL PROTOCOL KERNEL
+APPEND-ONLY EVENT STORE
+CANONICAL STATE
+decode → validate → authorize → preconditions
+→ transition → invariant check → event construction
+Canonical Event(s)
+projections
+Migration      Agent/Lease    Evidence/Gate
+The critical property is:
+no direct state mutation
+The scheduler therefore cannot bypass the protocol kernel.
+This distinction should be normative.
+A command is a request.
+RequestContractEvidence
+SubmitContract
+AuthorizeImplementation
+SubmitImplementation
+RequestVerification
+SubmitVerificationResult
+AdvanceGate
+QuarantineMigration
+ResolveConflict
+AdvanceEpoch
+AcquireLease
+ReleaseLease
+An event records what the protocol accepted as having happened.
+A rejected command does not become an event claiming the requested transition occurred.
+Every protocol event should have the same envelope.
+Why both state_before and state_after?
+Because replay should be able to detect:
+event claims:
+actual replay:
+That is a protocol integrity failure.
+It should not silently accept C.
+IDs should be opaque and typed.
+Do not use arbitrary strings throughout the protocol.
+This prevents accidental substitution such as:
+ContractId ← ArtifactId
+AgentId    ← MigrationUnitId
+SnapshotId ← VariantId
+The compiler should reject those mistakes.
+The central protocol operation is:
+But internally it should be conceptually:
+if Validate(C) fails:
+else if Authorize(S, C) fails:
+else if Preconditions(S, C) fail:
+E = Transition(S, C)
+S' = Reduce(S, E)
+Invariants(S') must hold
+Accept(E, S')
+Validate(C)
+∧ Authorize(S,C)
+∧ Preconditions(S,C)
+∧ Invariants(Transition(S,C))
+→ ACCEPT
+→ REJECT
+The protocol state should be explicit rather than reconstructed ad hoc by individual agents.
+The state itself should be derived from events.
+The event log is canonical.
+The projection is derived.
+The reducer must be deterministic.
+No LLM call belongs inside the reducer.
+No wall-clock lookup.
+No network request.
+No filesystem inspection.
+No randomness.
+No scheduler decision.
+same initial state
+same event sequence
+same final state
+This becomes one of the strongest protocol properties.
+Instead of scattering rules through match statements, define transitions declaratively.
+AUTHORIZED_FOR_IMPLEMENTATION
+IMPLEMENTED
+P1 authorization exists
+P2 authorization valid
+P3 actor possesses implementation authority
+P4 capability covers migration unit
+P5 snapshot matches
+P6 epoch matches
+P7 implementation lease is held
+P8 worktree is authorized
+P9 required design artifact exists
+P10 no blocking conflict
+P11 no critical unknown
+Failure of any one condition:
+REJECTED
+No partial transition.
+A transition must be atomic from the protocol's perspective.
+This leaves partial state.
+load state
+evaluate preconditions
+construct event
+validate resulting state
+append event
+publish new state
+The event is the commit boundary.
+The protocol should use compare-and-swap semantics.
+A command carries:
+Before committing:
+stored sequence == command.sequence
+stored state digest == command.state_digest
+stored epoch == command.epoch
+ConcurrentWriter
+StaleEpoch
+Agent A reads state S
+Agent B reads state S
+Agent A → transition → S1
+Agent B → transition based on S → invalid
+Agent B must reload.
+Minimal interface:
+The append operation must enforce:
+expected.sequence == actual.sequence
+expected.digest == actual.head_digest
+before accepting events.
+This is the protocol's CAS boundary.
+Events should form a cryptographic chain.
+previous_digest = D001
+previous_digest = D002
+This makes deletion/reordering detectable.
+The event log therefore becomes:
+append-only
+hash-linked
+snapshot-bound
+epoch-bound
+Do not represent protocol failures as strings.
+This allows machine-readable handling:
+InvalidStateTransition
+→ protocol bug / caller bug
+MissingEvidence
+→ evidence task
+CriticalUnknown
+→ investigation task
+→ recompute / rebase
+→ reload
+CapabilityMissing
+→ capability acquisition
+ScopeViolation
+→ reject permanently unless authorization changes
+A malformed or unauthorized command should not mutate canonical state.
+authorization expired
+ProtocolError::Authorization(...)
+ImplementationSubmitted
+ImplementationExecutionFailed
+protocol rejection
+authorized operation failure
+This distinction is essential for auditability.
+The initial lifecycle can now become executable.
+Every row becomes a protocol rule.
+No agent can simply assign:
+state = VERIFIED
+A verification result should require:
+VerificationObligation exists
+ExecutionReceipt exists
+Receipt is valid
+Artifact digests match
+Oracle is valid
+Evidence scope covers obligation
+No blocking unknown
+No unresolved critical conflict
+independence requirements satisfied
+Only then can the protocol accept:
+VerificationCompleted
+Execution receipt ≠ semantic proof.
+NO EVIDENCE → NO VERIFIED CLAIM.
+Do not make every consumer replay the entire log.
+Create deterministic projections:
+MigrationProjection
+AgentProjection
+LeaseProjection
+EvidenceProjection
+ConflictProjection
+GateProjection
+AuthorizationProjection
+Projection ≠ authority
+If a projection is corrupted:
+rebuild projection
+The projection can always be reconstructed.
+Large event histories eventually need snapshots.
+Replay becomes:
+Snapshot @ sequence 10,000
+Events 10,001..10,500
+Current State
+But snapshotting must never alter semantics.
+replay(all events)
+replay(snapshot + remaining events)
+This should be a conformance property.
+There are at least three distinct versions:
+ProtocolVersion
+SchemaVersion
+ArtifactVersion
+Do not collapse them.
+Transition semantics.
+Serialization shape.
+Individual artifact representation.
+A schema migration must not silently change protocol semantics.
+Never mutate historical events.
+rewrite as V2
+historical V1 remains immutable
+upcaster
+canonical current representation
+with deterministic compatibility logic.
+Historical evidence must remain reconstructible.
+The protocol itself now needs a QA corpus.
+tests/protocol/
+Core tests
+The protocol kernel should be attacked independently of the agents.
+The protocol should fail closed.
+The first implementation should remain intentionally small:
+crates/rfl-protocol/
+Keep orchestration, KSIR, contract inference, and LLM integration outside this crate.
+That is important.
+That would create authority recursion.
+Do not implement the entire protocol at once.
+Implement exactly this:
+CREATE TASK
+DISCOVER MIGRATION
+MAP MIGRATION
+SUBMIT CONTRACT
+CONTRACTED
+state digest
+fresh state
+same state digest
+Only after that passes should implementation authorization be added.
+The first important executable invariant should be:
+For a valid initial state and deterministic event sequence, protocol replay produces exactly one canonical state.
+Replay(E) = S
+and for any deterministic implementation of the reducer:
+Replay(E) = Replay(E)
+Reduce(S₀, E₁...Eₙ) = Sₙ
+must be stable.
+This becomes the foundation for everything above it.
+Authorization cannot be manufactured by transition.
+Authorization ∉ State
+cannot perform protected transition
+Capability ≠ Authorization
+A capable agent without authorization remains unauthorized.
+An authorized agent without the required capability remains ineligible.
+Neither can be inferred from the other.
+Scheduler output is advisory until accepted by protocol.
+Assignment proposal
+Assignment event
+scheduler state
+canonical protocol state
+This prevents the orchestration layer from becoming a hidden authority layer.
+The system now has a clean vertical boundary:
+Semantic World
+Protocol World
+Rust Design IR
+Implementation ───────────────→ Protocol Events
+Event Store
+Canonical State
+The crucial separation is now:
+SEMANTIC AUTHORITY
+KSIR / Contract / Verification
+PROTOCOL AUTHORITY
+State machine / Event log
+EXECUTION AUTHORITY
+Execution runtime / CI
+SCHEDULING AUTHORITY
+Scheduler only allocates authorized work
+RELEASE AUTHORITY
+Release gate / review
+No layer silently inherits authority from another.
+The next step should be implementation of the protocol kernel, not another conceptual abstraction:
+RFL-AE-PROTOCOL-001
+canonical typed IDs
+Command / Event model
+transition algebra
+authorization validator
+deterministic reducer
+append-only in-memory EventStore
+replay engine
+state/event hashing
+CAS concurrency protection
+transition conformance tests
+adversarial protocol tests
+Once that executable kernel is green, KSIR should attach to it as a producer of typed semantic artifacts, rather than defining its own lifecycle or authority rules.
+PROTO-001
+PROTO-020
+ATTACK-001
+ATTACK-020

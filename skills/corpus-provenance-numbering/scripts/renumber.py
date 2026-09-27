@@ -57,8 +57,11 @@ def blockquote(name: str, count: int, prev_last: int, prev_file: str,
 
 
 def github_slug(h: str) -> str:
-    s = re.sub(r"[^\w\s-]", "", h.lower())
-    return re.sub(r"[\s]+", "-", s.strip())
+    """GitHub (gfm) slugger. Each space becomes one hyphen; runs are NOT
+    collapsed, so a heading whose glyph was stripped between two spaces yields
+    a double hyphen."""
+    s = h.lower().replace("'", "")
+    return re.sub(r"[^\w\- ]", "", s).replace(" ", "-")
 
 
 def plan(name: str, count: int, prev_last: int, prev_file: str, title: str) -> int:

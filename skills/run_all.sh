@@ -47,13 +47,13 @@ stage "3/6 corpus audit (14 documents)" \
   $PY skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108 --strict
 
 stage "4/6 last document audited in full" \
-  $PY skills/markdown-corpus-audit/scripts/audit_file.py ORCHESTRATION.md \
-      --range 463-517 --source-name ORCHESTRATION.md --offset 462 --strict \
-      --probes skills/markdown-corpus-audit/probes/orchestration.txt
+  $PY skills/markdown-corpus-audit/scripts/audit_file.py PROTOCOL-KERNEL.md \
+      --range 518-547 --source-name PROTOCOL-KERNEL.md --offset 517 --strict \
+      --probes skills/markdown-corpus-audit/probes/protocol-kernel.txt
 
 stage "5/6 close-out ritual verified" \
   $PY skills/spec-turn-closeout/scripts/verify_closeout.py \
-      --new ORCHESTRATION.md --prev EXECUTION.md
+      --new PROTOCOL-KERNEL.md --prev ORCHESTRATION.md
 
 echo
 echo "════════ 6/6 negative tests (each MUST fail) ════════"
@@ -126,7 +126,7 @@ neg "audit catches 8 planted defects" \
       --source-name BROKEN.md --offset 0
 neg "close-out fails with no forward link" \
   $PY skills/spec-turn-closeout/scripts/verify_closeout.py \
-      --new ORCHESTRATION.md --prev ARCHITECTURE.md
+      --new PROTOCOL-KERNEL.md --prev ARCHITECTURE.md
 
 printf 'alpha\n  |\n  v\nbeta\n' > /tmp/negtest_splice/diag/DFOO.txt
 printf 'unused\n'                > /tmp/negtest_splice/diag/DUNUSED.txt

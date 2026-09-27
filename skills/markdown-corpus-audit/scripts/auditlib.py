@@ -260,9 +260,20 @@ def check_provenance(text: str, source_name: str, offset: Optional[int] = None) 
 # ------------------------------------------------------------------- links
 
 def slug(heading: str) -> str:
-    """GitHub-style anchor slug."""
-    s = re.sub(r"[^\w\s-]", "", heading.lower())
-    return re.sub(r"[\s]+", "-", s.strip())
+    """GitHub (gfm) anchor slug.
+
+    Must match GitHub exactly: downcase, drop apostrophes, strip punctuation
+    (anything that is not a word char, hyphen, or space), then replace EACH
+    space with a hyphen.
+
+    Do NOT collapse runs of whitespace. A heading like `519. Command \u2260 Event`
+    loses the `\u2260` and keeps the two surrounding spaces, so its slug is
+    `519-command--event` with a DOUBLE hyphen. Collapsing produces
+    `519-command-event`, which does not resolve on GitHub.
+    """
+    s = heading.lower().replace("'", "")
+    s = re.sub(r"[^\w\- ]", "", s)
+    return s.replace(" ", "-")
 
 
 def check_links(text: str, base_dir: str) -> Dict:

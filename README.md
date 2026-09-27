@@ -132,6 +132,21 @@ non-self-validating release gate.
   criteria `ORCH-001`–`ORCH-017`, the scheduler crate architecture, the resulting authority
   model, and the frozen **RFL-AE Core Invariants** `RFL-AE-I001`–`I015`. Same provenance
   convention as `VERIFICATION.md`.
+- **[PROTOCOL-KERNEL.md](PROTOCOL-KERNEL.md)** (§518–§547, source §§1–§30) — the protocol
+  kernel, where the specification becomes an executable state machine: the trust boundary from
+  untrusted proposal side through the kernel to the append-only event store and canonical
+  state, the normative `Command ≠ Event` distinction, the canonical event envelope carrying
+  both `state_before` and `state_after`, opaque typed IDs, the transition algebra,
+  `ProtocolState`, the deterministic reducer, declarative `TransitionSpec` with its eleven
+  preconditions, atomicity with the event as commit boundary, optimistic concurrency and the
+  CAS boundary, the `EventStore` trait, the event hash chain, structured `ProtocolError`,
+  rejected command versus authorized operation failure, the executable migration transition
+  table, the strict verification transition, event-sourced projections, snapshotting, three
+  distinct version axes, event evolution, the `PROTO-001`–`PROTO-020` conformance suite, the
+  `ATTACK-001`–`ATTACK-020` adversarial suite, the minimal `rfl-protocol` crate, dependency
+  direction without authority recursion, the first executable vertical slice, the three
+  protocol theorems, and the separation of semantic, protocol, execution, scheduling and
+  release authority. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -169,6 +184,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Fourteen specification documents covering §1–§517 (§108 does not
+`v0.0` — documentation only. Fifteen specification documents covering §1–§547 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
