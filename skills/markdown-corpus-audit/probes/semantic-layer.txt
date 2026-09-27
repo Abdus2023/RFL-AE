@@ -1,0 +1,577 @@
+# Verbatim phrases from the SEMANTIC-LAYER source (§1-§29 + closing section).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The next layer is the actual heart of the Linux C→Rust problem:
+C source
+Observed program facts
+Semantic Reconstruction
+Kernel Semantic IR (KSIR)
+Contracts
+Rust Design IR
+Rust implementation
+Independent verification
+The important rule is:
+**Do not translate syntax first. Reconstruct semantics first.**
+A C function can be mechanically translated into Rust while still being semantically wrong because the important behavior may reside in calling conventions, lock context, RCU rules, interrupt context, ownership conventions, error paths, initialization ordering, macros, generated code, or interactions with other subsystems.
+For a C function:
+int foo(struct bar *b) {
+RFL-AE should not immediately ask:
+"What is the Rust equivalent?"
+It should first ask:
+What does foo mean?
+More formally:
+C Artifact
+Observable Facts
+Control/Data/Concurrency Analysis
+Semantic Claims
+This produces two distinct artifacts:
+C semantics
+Semantic Contract
+Evidence
+Rust Design
+The contract and evidence remain separate.
+The existing KSIR concept should become a real intermediate representation.
+Not merely Markdown.
+Something like:
+crates/
+rfl-ksir/
+src/
+lib.rs
+function.rs
+type.rs
+memory.rs
+concurrency.rs
+control.rs
+abi.rs
+lifecycle.rs
+provenance.rs
+The first version does not need to model all of C.
+It needs to model the **kernel-relevant semantics that affect a safe Rust reconstruction**.
+pub struct SemanticUnit {
+pub id: SemanticUnitId,
+pub epoch: Epoch,
+pub source: SourceRegion,
+pub declarations: Vec<Declaration>,
+pub operations: Vec<Operation>,
+pub invariants: Vec<Invariant>,
+pub contracts: Vec<ContractRef>,
+pub evidence: Vec<EvidenceId>,
+The important field is:
+evidence
+Every nontrivial semantic assertion should be traceable.
+For example:
+Invariant:
+"lock L protects field x"
+Evidence:
+source locations
+call graph
+lock annotations
+runtime observations
+static analysis
+Without that:
+"lock L protects x"
+is merely an agent assertion.
+This distinction needs to become fundamental.
+Observed:
+function A calls spin_lock(&L)
+Derived:
+execution of A enters a region protected by L
+Hypothesis:
+all accesses to field x require L
+Verified:
+the invariant has sufficient independent evidence
+These must never collapse into one Boolean.
+OBSERVED
+≠ DERIVED
+≠ HYPOTHESIS
+≠ VERIFIED
+This matches one of RFL-AE's strongest existing ideas and should now be enforced by the data model.
+Instead of storing only:
+claim -> evidence
+use a graph:
+SOURCE
+OBSERVATION
+DERIVATION
+CLAIM
+CONTRACT
+VERIFICATION
+Each edge needs provenance.
+pub enum DerivationKind {
+CallGraph,
+DataFlow,
+ControlFlow,
+TypeAnalysis,
+LockAnalysis,
+RcuAnalysis,
+LifetimeAnalysis,
+RuntimeObservation,
+DifferentialObservation,
+Now RFL-AE can answer:
+Why does the system believe this contract exists?
+rather than merely:
+Which agent said it?
+For kernel reconstruction, KSIR should explicitly model at least these dimensions:
+1. Type
+2. Memory
+3. Ownership
+4. Lifetime
+5. Aliasing
+6. Initialization
+7. Destruction
+8. Concurrency
+9. Locking
+10. RCU
+11. Interrupt context
+12. Process context
+13. Allocation context
+14. Error behavior
+15. Control flow
+16. Data flow
+17. ABI
+18. Calling convention
+19. Side effects
+20. Global state
+21. CPU locality
+22. Preemption
+23. Atomicity
+24. Ordering
+25. Synchronization
+26. Configuration
+27. Architecture dependencies
+28. Generated code
+29. Macro behavior
+30. External subsystem dependencies
+Not every function will populate all 30.
+But the absence must be explicit:
+NOT_OBSERVED
+rather than silently becoming:
+false
+This is particularly important for Linux.
+A function's meaning cannot always be inferred from its body alone.
+Example conceptual distinction:
+foo()
+called from:
+process context
+may permit:
+sleep
+while the same function called from:
+atomic context
+interrupt context
+may not.
+Therefore KSIR needs:
+pub enum ExecutionContext {
+Process,
+Atomic,
+Interrupt,
+SoftIrq,
+Nmi,
+RcuReadSide,
+Unknown,
+Potentially with compositional properties rather than a single enum, because contexts can overlap.
+Interrupt + RCU read-side + preemption constraints
+should not necessarily be flattened into one categorical state.
+A Rust migration agent must know more than:
+"there is a lock here."
+It needs:
+Lock L
+protects:
+field x
+field y
+acquired:
+function A
+function B
+released:
+ordering:
+L1 -> L2
+context:
+process / atomic / ...
+Represent:
+pub struct LockContract {
+pub lock: SymbolId,
+pub protected: Vec<MemoryLocation>,
+pub ordering: Vec<LockOrder>,
+pub acquisition: Vec<SourceRegion>,
+pub release: Vec<SourceRegion>,
+Then Rust design can decide whether the appropriate representation is:
+Mutex
+SpinLock
+RwLock
+raw lock abstraction
+guard
+atomic
+RCU primitive
+The AI does not get to choose based on naming similarity.
+This is one of the hardest parts.
+C often expresses ownership indirectly.
+caller allocates
+callee stores pointer
+asynchronous worker consumes it
+worker releases it
+The C syntax alone does not say:
+"this pointer has transferred ownership."
+KSIR therefore needs explicit ownership events:
+pub enum OwnershipEvent {
+Create,
+Borrow,
+BorrowMut,
+Transfer,
+Retain,
+Release,
+Destroy,
+And a relation:
+Object O  CREATE
+OWNED(A)
+TRANSFER
+OWNED(B)
+RELEASE
+DESTROYED
+The Rust design can then map this to:
+Box
+Arc
+Rc
+Pin
+&mut T
+&T
+kernel-specific ownership wrapper
+or potentially retain an unsafe boundary where the semantics cannot yet be proven.
+Ownership alone is insufficient.
+Kernel objects frequently have asynchronous lifetimes.
+Object
++-- created at A
++-- published at B
++-- consumed by worker C
++-- removed from lookup at D
++-- grace period E
++-- freed at F
+This becomes:
+pub struct LifetimeContract {
+pub object: SymbolId,
+pub creation: SourceRegion,
+pub publication: Option<SourceRegion>,
+pub retirement: Option<SourceRegion>,
+pub destruction: Option<SourceRegion>,
+pub dependencies: Vec<LifetimeDependency>,
+This is where constructs such as:
+refcounting
+workqueues
+timers
+callbacks
+interrupt handlers
+become central.
+Do not represent RCU as merely another lock.
+Conceptually:
+LOCK
+protects concurrent mutation
+RCU
+protects access/lifetime under grace-period semantics
+The reconstruction model should distinguish:
+RCU read-side critical section
+RCU publication
+RCU replacement
+RCU retirement
+grace-period synchronization
+post-grace reclamation
+Then a Rust design must preserve those semantics.
+A naive transformation:
+C pointer
+→ Rust reference
+is not automatically valid.
+Kernel initialization frequently has ordering semantics.
+init(A)
+requires:
+B initialized
+init(C)
+A initialized
+as a dependency graph:
+C before A
+is a protocol violation.
+This should be checked before code generation.
+Migration systems tend to over-focus on construction.
+Kernel correctness frequently depends on teardown:
+register
+publish
+operate
+quiesce
+unregister
+flush
+free
+The Rust design must preserve the ordering.
+A generated `Drop` implementation cannot simply be assumed correct.
+The semantic contract needs to say:
+Drop(X)
+workers stopped
+callbacks quiesced
+references released
+publication removed
+Do not bury ABI inside type conversion.
+Create:
+pub struct AbiContract {
+pub symbol: SymbolId,
+pub calling_convention: CallingConvention,
+pub parameter_layout: Layout,
+pub return_layout: Layout,
+pub visibility: Visibility,
+pub linkage: Linkage,
+C ABI
+ABI Contract
+Rust ABI Design
+This is especially important for mixed C/Rust kernel configurations.
+Linux source semantics are configuration-dependent.
+CONFIG_A
+enables X
+CONFIG_B
+changes implementation Y
+CONFIG_A && CONFIG_B
+activates Z
+Therefore a semantic unit should carry:
+pub struct ConfigurationContext {
+pub symbols: BTreeMap<ConfigSymbol, ConfigValue>,
+The reconstruction system must distinguish:
+behavior proven under CONFIG_X
+from:
+behavior proven for all configurations
+These are different claims.
+Likewise:
+x86
+ARM64
+RISC-V
+may expose different implementations.
+Therefore:
+SemanticContract
++-- universal
++-- architecture-specific
+A claim such as:
+"this operation is safe"
+must carry its domain.
+ARCH = x86_64
+CONFIG = ...
+TOOLCHAIN = ...
+rather than pretending one successful build establishes universal validity.
+This is another place where source-level AI reasoning can fail.
+The system should distinguish:
+written source
+generated source
+macro expansion
+compiler-generated behavior
+architecture-generated behavior
+Coccinelle is already part of the Linux ecosystem for semantic patching and transformation; RFL-AE should therefore treat existing kernel analysis/transformation infrastructure as an evidence source rather than trying to replace all of it with an LLM.
+Now we can define the first useful agent roles.
+Not:
+Agent 1
+Agent 2
+Agent 3
+but semantic responsibilities.
+Reconstruction Coordinator
+Control/Data
+Memory/Lifetime
+Concurrency
+Analyzer
+ABI Analyzer
+Configuration Analyzer
+Contract Synthesizer
+Each agent produces **claims/proposals**, not truth.
+Suppose an agent observes:
+spin_lock(&foo->lock);
+foo->value++;
+spin_unlock(&foo->lock);
+The observation is:
+O1:
+foo->value is written while lock is held.
+source = foo.c:L100-L102
+A derivation:
+D1:
+lock(foo->lock) protects this write.
+Potential contract:
+C1:
+writes to foo->value require foo->lock.
+But C1 is not automatically verified.
+The system searches for:
+all writes to foo->value
+all reads of foo->value
+all paths acquiring foo->lock
+all paths accessing foo->value
+If another path does:
+without the lock, then:
+may be false, incomplete, or conditional.
+The AI must not silently "repair" the contradiction.
+Instead:
+CONFLICT
+enters the evidence/verification pipeline.
+Add:
+pub struct SemanticConflict {
+pub id: ConflictId,
+pub claims: Vec<ClaimId>,
+pub conflict_kind: ConflictKind,
+pub status: ConflictStatus,
+pub enum ConflictKind {
+Locking,
+Rcu,
+Abi,
+Architecture,
+Initialization,
+Teardown,
+Conflict
+≠ Failure
+A conflict means the semantic model is not yet resolved.
+unresolved critical conflict
+→ release blocked
+This directly supports the existing release predicate.
+Agent A: lock protects x
+Agent B: lock protects x
+Agent C: lock does not protect x
+The system must **not** calculate:
+2 vs 1
+and choose the majority.
+Claims
+Analysis
+If evidence remains contradictory:
+UNKNOWN / CONFLICT
+The protocol does not manufacture truth from agreement.
+A model might output:
+confidence = 0.97
+That is not verification evidence.
+The protocol should permit probabilistic metadata:
+pub struct HeuristicScore {
+pub value: f64,
+pub basis: ScoreBasis,
+but prohibit:
+score > 0.95
+→ Verified
+The only route to:
+is a defined verification relation.
+Once semantic contracts stabilize, introduce the next IR:
+KSIR
+Contract IR
+Design IR
+Example:
+pub struct RustDesign {
+pub artifact: ArtifactId,
+pub types: Vec<RustTypeDesign>,
+pub ownership: Vec<OwnershipDesign>,
+pub concurrency: Vec<ConcurrencyDesign>,
+pub abi: Vec<AbiDesign>,
+pub unsafe_obligations: Vec<UnsafeObligation>,
+The critical field:
+unsafe_obligations
+must not disappear.
+being the end of the reasoning, RFL-AE should require:
+pub struct UnsafeObligation {
+pub id: ObligationId,
+pub location: SourceRegion,
+pub reason: UnsafeReason,
+pub required_invariants: Vec<InvariantId>,
+pub status: ObligationStatus,
+So:
+unsafe block
+UnsafeObligation
++-- invariant 1
++-- invariant 2
++-- invariant 3
+verification
+An unresolved critical unsafe obligation blocks certification.
+The final architecture now looks like:
+LINUX C
+Source Evidence
+KSIR
+lifetime
+ownership
+locking
+Contract Model
+contract verified
+Rust Generator
+Rust artifact
+compile
+KUnit
+runtime
+Gates
+Certificate
+This entire pipeline should enforce:
+RustArtifact
+cannot become Certified
+unless there exists a valid chain:
+RustDesign
+SemanticContract
+SourceEvidence
+and independently:
+Execution
+So certification requires **two independent directions of evidence**:
+SOURCE SEMANTICS
+RUST DESIGN
+RUST ARTIFACT
+EXECUTION EVIDENCE
+This is much stronger than either:
+C → Rust translation
+Rust compiles + tests pass
+alone.
+For a C→Rust unit `U`:
+CERTIFIABLE(U)
+requires:
+source_identity_valid
+AND semantic_model_complete_for_required_domains
+AND no_unresolved_critical_conflicts
+AND required_contracts_verified
+AND design_contract_conformant
+AND unsafe_obligations_resolved
+AND abi_contract_satisfied
+AND configuration_scope_satisfied
+AND architecture_scope_satisfied
+AND execution_evidence_valid
+AND verification_gates_pass
+AND replay_valid
+The phrase:
+complete_for_required_domains
+is deliberate.
+We should not require every imaginable semantic property for every function.
+Instead each subsystem declares its required semantic coverage.
+That leads directly to the next artifact:
+linux/subsystems/scheduler.yaml
+should define something like:
+semantic_requirements:
+type: required
+ownership: required
+lifetime: required
+locking: required
+rcu: required
+interrupt_context: required
+preemption: required
+abi: required
+configuration: required
+architecture: required
+verification_requirements:
+build: required
+kunit: required
+runtime: required
+concurrency: required
+differential: conditional
+A simpler subsystem might have:
+rcu: not_applicable
+but that declaration itself should be evidence-backed.
+We now have enough architecture to define the first **actual end-to-end vertical slice**.
+Do not attempt scheduler migration yet.
+Use an intentionally small kernel component and prove:
+source extraction
+contract
+Rust
+test
+gate
+The vertical slice becomes the reference implementation of the entire RFL-AE protocol.
+Then every subsequent subsystem must conform to the same pipeline.
+At this point the project can be divided cleanly:
+RFL-AE
+PROTOCOL KERNEL
+RECONSTRUCTION ENGINE
+├── types
+├── authorization
+├── transitions
+├── event ledger
+├── evidence
+├── C analysis
+├── contracts
+├── design IR
+└── Rust generation
+└── gates
+The **protocol kernel must be deterministic**.
+The **reconstruction engine may use AI**.
+That separation is fundamental.
+The LLM can be uncertain, wrong, inconsistent, or adversarially manipulated. The protocol kernel must still produce the same answer for the same typed state and request.
+That is the point where RFL-AE becomes an **AI-assisted verified reconstruction system**, rather than an AI coding swarm with a verification layer attached afterward.

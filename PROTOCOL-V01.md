@@ -1291,3 +1291,24 @@ The crucial invariant will be:
 > **Rust code is not the source of truth for what the C subsystem means. The reconstructed semantic contract is.**
 
 That gives RFL-AE a defensible architecture for the actual Linux C→Rust problem rather than merely an elaborate agent orchestration system.
+
+---
+
+**Done — see [SEMANTIC-LAYER.md](SEMANTIC-LAYER.md)** (§745–§774, source §§1–§29 plus the unnumbered
+*RFL-AE maturity boundary*), which specifies the layer at the heart of the Linux C→Rust problem
+and whose first rule is **do not translate syntax first — reconstruct semantics first**: the
+`SemanticUnit` whose `evidence` field makes every nontrivial assertion traceable; the
+`OBSERVED ≠ DERIVED ≠ HYPOTHESIS ≠ VERIFIED` distinction enforced by the data model; a
+provenance graph so the system can answer *"why does the system believe this contract exists?"*
+rather than *"which agent said it?"*; thirty explicit semantic dimensions where absence is
+`NOT_OBSERVED` and never silently `false`; execution context, lock, ownership, lifetime, RCU,
+initialization and teardown models; independent ABI and configuration/architecture scopes; the
+specialized reconstruction agents that produce **claims/proposals, not truth**; `SemanticConflict`
+as a first-class object with **no majority voting**; `HeuristicScore` permitted as metadata but
+prohibited from becoming `Verified`; the Rust Design IR whose `unsafe_obligations` must not
+disappear; unsafe as an obligation ledger; the full compilation pipeline; the crucial invariant
+that certification requires **two independent directions of evidence**; the
+`CERTIFIABLE(U)` predicate with `complete_for_required_domains` deliberate; subsystem migration
+profiles; the first end-to-end vertical slice; and the maturity boundary where the **protocol
+kernel must be deterministic** and the **reconstruction engine may use AI**. Same provenance
+convention as `VERIFICATION.md`.

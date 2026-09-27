@@ -289,6 +289,25 @@ non-self-validating release gate.
   *whether* the test passed; maintainer authority as a separate plane; and the C→Rust
   reconstruction model, where **the reconstructed semantic contract — not the Rust code — is the
   source of truth**. Same provenance convention as `VERIFICATION.md`.
+- **[SEMANTIC-LAYER.md](SEMANTIC-LAYER.md)** (§745–§774, source §§1–§29 plus the unnumbered
+  *RFL-AE maturity boundary*) — the layer at the heart of the Linux C→Rust problem, whose first
+  rule is **do not translate syntax first — reconstruct semantics first**. The `SemanticUnit`
+  whose `evidence` field makes every nontrivial assertion traceable; the
+  `OBSERVED ≠ DERIVED ≠ HYPOTHESIS ≠ VERIFIED` distinction enforced by the data model; a
+  provenance graph so the system can answer *"why does the system believe this contract
+  exists?"* rather than *"which agent said it?"*; thirty explicit semantic dimensions, where
+  absence is `NOT_OBSERVED` and never silently `false`; execution-context, lock, ownership,
+  lifetime, RCU, initialization and teardown models; independent ABI and
+  configuration/architecture scopes; specialised reconstruction agents that produce
+  **claims/proposals, not truth**; `SemanticConflict` as a first-class object with **no majority
+  voting**; `HeuristicScore` permitted as metadata but prohibited from becoming `Verified`; the
+  Rust Design IR whose `unsafe_obligations` must not disappear; unsafe as an obligation ledger;
+  the full compilation pipeline; the crucial invariant that certification requires **two
+  independent directions of evidence**; the `CERTIFIABLE(U)` predicate, whose
+  `complete_for_required_domains` is deliberate; subsystem migration profiles; the first
+  end-to-end vertical slice; and the maturity boundary where the **protocol kernel must be
+  deterministic** and the **reconstruction engine may use AI**. Same provenance convention as
+  `VERIFICATION.md`.
 
 ## Tooling
 
@@ -316,7 +335,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§744 numbering. Every checkable
+a specification, so it sits outside the §1–§774 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -326,6 +345,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-three specification documents covering §1–§744 (§108 does not
+`v0.0` — documentation only. Twenty-four specification documents covering §1–§774 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
