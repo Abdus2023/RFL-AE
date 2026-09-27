@@ -935,3 +935,28 @@ I would make **RFL-AE v0.1 Protocol Kernel** impossible to call complete unless 
 **Only after that should RFL-AE be trusted to supervise an AI system working on Linux kernel C→Rust reconstruction.**
 
 The next concrete step is therefore to write the **`rfl-types` normative type system + state-transition algebra**, rather than adding more agent roles.
+
+---
+
+**Done — see [PROTOCOL-V01.md](PROTOCOL-V01.md)** (§718–§744, source §§1–§27), which freezes the
+Protocol Kernel Specification v0.1 and makes the protocol **closed under execution**: the
+canonical domain model in which `Task`, `Contract`, `Capability` and `Authorization` are **not
+interchangeable**; opaque newtype IDs so code cannot compare `String` with `ArtifactId`;
+`KernelSnapshotId` resolving the `SnapshotId` ambiguity; an `Epoch` with an executable
+`same_epoch` rule rather than a textual convention; structural `Scope` with `contains()` as
+protocol logic; the absolute **capability ≠ authorization** distinction; a closed
+`OperationKind` with no arbitrary shell execution; typed `OperationRequest` instead of
+natural-language instructions; a transition relation with **no third state**; a stable
+`RejectionReason` taxonomy; explicit transition legality where `Created -> Certified` yields
+`InvalidTransition`; `Task` separated from `TaskAttempt` rather than allowing state rewinds; an
+event ledger chained by `previous_event` and `event_digest`; the replay invariant
+`replay(events) == authoritative_state`; evidence strictly downstream of execution;
+`EvidenceOutcome::Passed` **not** implying `Artifact::Verified`; verification as a
+multi-dimensional relation; nine contract classes; the gate non-equivalences; a certificate that
+is `Derive(...)` and never *"Agent says CERTIFIED"*; an executable `RELEASE_ELIGIBLE` predicate;
+a tiny agent API; the proposed repository reorganisation; an 18-row conformance matrix where
+**the negative suite is as important as the positive suite**; the kernel verification bridge
+where RFL-AE knows *what* evidence means and Linux tools determine *whether* the test passed;
+maintainer authority as a separate plane; and the C→Rust reconstruction model where **the
+reconstructed semantic contract, not the Rust code, is the source of truth**. Same provenance
+convention as `VERIFICATION.md`.

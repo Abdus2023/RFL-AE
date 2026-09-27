@@ -1,0 +1,539 @@
+# Verbatim phrases from the PROTOCOL-V01 source (§1-§27).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The key change now is to make the protocol **closed under execution**: every object referenced by a transition must have a canonical type, every state change must have a deterministic rule, and every rejection must be machine-identifiable.
+This is also compatible with the actual Linux Rust environment: kernel Rust is `no_std`; the kernel's shared `kernel` crate is the intended abstraction layer rather than bypassing it; KUnit already provides Rust-facing test infrastructure.
+I would freeze the foundational model as:
+KernelSnapshot
+Epoch
+Task
+Contract
+Capability
+Authorization
+OperationRequest
+TransitionEngine
+Reject
+Accept
+Reason
+Event
+Artifact/Evidence
+Gates
+Certificate
+The important point is that **`Task`, `Contract`, `Capability`, and `Authorization` are not interchangeable**.
+Every externally meaningful identifier should be opaque.
+Do not let code accidentally compare:
+String
+ArtifactId
+TaskId
+SnapshotId
+Use newtypes:
+pub struct TaskId(pub Uuid);
+pub struct AgentId(pub Uuid);
+pub struct ArtifactId(pub Uuid);
+pub struct EvidenceId(pub Uuid);
+pub struct ContractId(pub Uuid);
+pub struct GateId(pub Uuid);
+pub struct AuthorizationId(pub Uuid);
+pub struct EventId(pub Uuid);
+For content identity:
+pub struct Digest {
+pub algorithm: DigestAlgorithm,
+pub bytes: [u8; 32],
+pub enum DigestAlgorithm {
+Sha256,
+The algorithm must be part of the identity rather than an undocumented assumption.
+Resolve the existing `SnapshotId` ambiguity by making the Linux source snapshot explicit:
+pub struct KernelSnapshotId {
+pub git: GitObjectId,
+Then:
+pub struct KernelSnapshot {
+pub id: KernelSnapshotId,
+pub source_digest: Digest,
+pub tree_digest: Digest,
+If RFL-AE later needs a broader snapshot concept, introduce:
+pub struct ProtocolSnapshotId(...);
+rather than overloading `SnapshotId`.
+Recommended invariant:
+KernelSnapshotId != ProtocolSnapshotId
+unless there is an actual formal reason for them to be identical.
+An epoch is the protocol's anti-staleness boundary.
+pub struct Epoch {
+pub kernel: KernelSnapshotId,
+pub specification: Digest,
+pub protocol: Digest,
+pub generation: u64,
+Define:
+pub fn same_epoch(a: &Epoch, b: &Epoch) -> bool;
+with:
+same_epoch(a,b)
+iff a.kernel       == b.kernel
+&& a.specification == b.specification
+&& a.protocol      == b.protocol
+&& a.generation   == b.generation
+This gives us an executable rule rather than a textual convention.
+Scope needs to be structural.
+Do not model it merely as:
+pub struct Scope {
+pub path: String,
+because:
+kernel/sched/
+versus:
+kernel/sched/core.c
+requires semantics.
+Instead:
+pub roots: Vec<ScopeRoot>,
+pub enum ScopeRoot {
+RepositoryPath(RepoPath),
+Subsystem(SubsystemId),
+Artifact(ArtifactId),
+Then define the relation:
+contains(scope, target)
+as protocol logic.
+This gives:
+authorized:
+subsystem=scheduler
+requested:
+kernel/sched/core.c
+=> ACCEPT
+while:
+fs/open.c
+=> REJECT(SCOPE_VIOLATION)
+This distinction should be absolute.
+A capability says:
+what an actor is potentially allowed to do
+Authorization says:
+whether that actor is authorized to perform this specific operation at this epoch, on this target, within this scope.
+Therefore:
+pub struct Capability {
+pub id: CapabilityId,
+pub operation: OperationKind,
+pub scope: Scope,
+pub struct Authorization {
+pub epoch: Epoch,
+pub actor: AgentId,
+pub task: TaskId,
+pub capability: CapabilityId,
+pub expires_at: Option<Timestamp>,
+This prevents:
+"I have write capability"
+from becoming:
+"I may modify anything."
+Define a closed operation enum initially:
+pub enum OperationKind {
+Observe,
+Extract,
+Analyze,
+Propose,
+Generate,
+Modify,
+Execute,
+Verify,
+Review,
+Do not initially expose arbitrary shell execution as an operation.
+pub enum ExecutionTarget {
+KernelBuild,
+KernelTest,
+Kunit,
+RustTest,
+StaticAnalysis,
+DifferentialTest,
+A future privileged operation such as:
+ShellCommand
+must be introduced deliberately because it massively expands the authority surface.
+The fundamental protocol input becomes:
+pub struct OperationRequest {
+pub request_id: RequestId,
+pub target: Target,
+pub authorization: AuthorizationId,
+The engine receives only this.
+Not:
+"Please modify scheduler code."
+natural-language instruction
+The LLM's natural-language output must first be converted into a typed request.
+The central API:
+pub trait TransitionEngine {
+fn apply(
+&mut self,
+request: OperationRequest,
+) -> TransitionResult;
+pub enum TransitionResult {
+Accepted {
+event: EventId,
+state: StateDigest,
+Rejected {
+reason: RejectionReason,
+No third state.
+maybe probably needs LLM judgment
+This deserves its own stable enum.
+pub enum RejectionReason {
+UnknownTask,
+UnknownActor,
+UnknownAuthorization,
+EpochMismatch,
+SnapshotMismatch,
+SpecificationMismatch,
+ProtocolMismatch,
+AuthorizationExpired,
+AuthorizationRevoked,
+CapabilityMissing,
+ScopeViolation,
+InvalidTaskState,
+InvalidTransition,
+ArtifactMissing,
+ArtifactMismatch,
+EvidenceMissing,
+EvidenceUnbound,
+SelfVerification,
+DuplicateOperation,
+ReplayConflict,
+GateFailure,
+GateBlocked,
+DependencyInvalidated,
+PolicyDenied,
+The distinction between these reasons is important for automated diagnosis.
+BLOCKED
+must not be represented as:
+FAIL
+because the repository's architecture already correctly treats those as different conditions.
+Represent state transitions explicitly.
+pub enum TaskState {
+Created,
+Admitted,
+Authorized,
+Executing,
+Succeeded,
+Failed,
+Verified,
+Gated,
+Certified,
+Created   -> Admitted
+Admitted   -> Authorized
+Authorized   -> Executing
+Executing   -> Succeeded
+-> Failed
+Succeeded   -> Verified
+Verified   -> Gated
+Gated   -> Certified
+Everything else is rejected.
+Created -> Certified
+must produce:
+InvalidTransition
+One subtlety needs formal treatment.
+Failed -> Executing
+be legal?
+The answer should **not** be hard-coded as a universal rule.
+Instead distinguish:
+TaskAttempt
+from:
+A task may have multiple attempts while the task's semantic identity remains stable.
++-- Attempt 1 -> FAILED
++-- Attempt 2 -> EXECUTING
++-- Attempt 3 -> SUCCEEDED
+!=
+TaskAttempt
+This is cleaner than allowing arbitrary state rewinds.
+Every accepted transition generates exactly one authoritative event.
+pub struct Event {
+pub id: EventId,
+pub sequence: u64,
+pub actor: AgentId,
+pub request: RequestId,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+The sequence must be monotonic:
+0 1 2 3 ...
+But sequence numbers alone are insufficient.
+Add:
+pub previous_event: Option<EventId>,
+pub event_digest: Digest,
+Then the ledger forms a chain:
+E0
+E1
+E2
+E3
+The replay engine should expose:
+pub fn replay(
+events: &[Event],
+) -> Result<State, ReplayError>;
+And the fundamental invariant becomes:
+replay(events) == authoritative_state
+The stronger property:
+execute(requests)
+events
+replay(events)
+state'
+state' == execution_state
+This is one of the most important tests in the entire project.
+Do not permit an agent to manufacture its own verification evidence.
+Correct:
+operation
+execution authority
+raw result
+EvidenceRecord
+agent
++--> code
++--> "tests passed"
+The kernel itself already has established test infrastructure such as KUnit, which can run tests and produce structured KTAP results; RFL-AE should treat those external execution systems as evidence producers rather than letting an agent assert the result itself.
+Minimum:
+pub struct EvidenceRecord {
+pub id: EvidenceId,
+pub subject: ArtifactId,
+pub executor: ExecutorId,
+pub command_digest: Digest,
+pub input_digest: Digest,
+pub output_digest: Digest,
+pub environment: EnvironmentFingerprint,
+pub toolchain: ToolchainFingerprint,
+pub outcome: EvidenceOutcome,
+pub enum EvidenceOutcome {
+Passed,
+NotApplicable,
+Critically:
+EvidenceOutcome::Passed
+does **not** itself imply:
+Artifact::Verified
+A gate must establish that implication under the appropriate verification contract.
+Verify(Artifact, Contract, EvidenceSet)
+-> VerificationResult
+where:
+pub enum VerificationResult {
+Verified {
+evidence: Vec<EvidenceId>,
+PartiallyVerified {
+satisfied: Vec<ContractId>,
+missing: Vec<ContractId>,
+Failed {
+violations: Vec<ContractViolation>,
+Blocked {
+reasons: Vec<VerificationBlocker>,
+This prevents a dangerous simplification:
+one test passed
+= verified
+For kernel reconstruction, verification must be multidimensional.
+The contract system should distinguish at least:
+SemanticContract
+SafetyContract
+ConcurrencyContract
+ABIContract
+BuildContract
+RuntimeContract
+CompatibilityContract
+PerformanceContract
+MigrationContract
+Example:
+scheduler/core.c
+might have:
+Semantic:
+scheduling decisions preserved
+Concurrency:
+lock ordering preserved
+Safety:
+ownership/lifetime invariants preserved
+ABI:
+exported interfaces preserved
+Runtime:
+scheduler behavior valid under test matrix
+No single test can discharge all five.
+Now the gate engine can consume verification results.
+pub enum GateStatus {
+Pass,
+Fail,
+Blocked,
+NotApplicable,
+Invalidated,
+Define the non-equivalences:
+PASS  != NOT_APPLICABLE
+FAIL  != BLOCKED
+BLOCKED  != PASS
+INVALIDATED  != FAIL
+Especially:
+means:
+insufficient authority/evidence to decide.
+Whereas:
+the required condition was evaluated and did not hold.
+That distinction should propagate all the way into release certification.
+The final technical certificate should therefore be a derived object:
+pub struct TechnicalCertificate {
+pub artifact: ArtifactId,
+pub contract_results: Vec<ContractResult>,
+pub verification_results: Vec<VerificationResult>,
+pub gate_results: Vec<GateResult>,
+pub certificate_digest: Digest,
+And:
+Derive(
+Artifact,
+Contracts,
+Verification,
+It must never be:
+Agent says "CERTIFIED"
+The release predicate can now become executable:
+RELEASE_ELIGIBLE(a, e)
+iff:
+epoch_valid(a,e)
+AND scope_valid(a)
+AND contracts_satisfied(a)
+AND verification_satisfied(a)
+AND all_required_gates_pass(a)
+AND no_required_gate_blocked(a)
+AND no_required_gate_failed(a)
+AND no_dependency_invalidated(a)
+AND evidence_complete(a)
+AND replay_valid(a)
+This is the first point at which the architecture's release language becomes something a machine can actually enforce.
+The agent API should intentionally be tiny:
+trait Agent {
+fn observe(&self, request: ObserveRequest) -> Proposal;
+Proposal
+Protocol validation
+An agent never directly calls:
+git commit
+git push
+cargo publish
+unless those operations have explicitly become authorized protocol operations.
+The RFL-AE tree should evolve from:
+RFL-AE/
+ARCHITECTURE.md
+SPECIFICATION.md
+VERIFICATION.md
+GATES.md
+EXECUTION.md
+ORCHESTRATION.md
+skills/
+toward:
+docs/
+FORMAL-CORE.md
+PROTOCOL.md
+RUST-CORE.md
+TRANSITIONS.md
+KSIR.md
+RECONSTRUCTION.md
+CONTRACTS.md
+DESIGN-IR.md
+crates/
+rfl-types/
+rfl-transition/
+rfl-ledger/
+rfl-evidence/
+rfl-verification/
+rfl-gates/
+schemas/
+epoch.schema.json
+task.schema.json
+authorization.schema.json
+artifact.schema.json
+evidence.schema.json
+verification.schema.json
+gate.schema.json
+certificate.schema.json
+linux/
+subsystems/
+architectures/
+configurations/
+toolchains/
+maintainers/
+conformance/
+positive/
+negative/
+replay/
+authorization/
+adversarial/
+.github/
+workflows/
+The initial suite should not test whether the architecture *looks* correct.
+It should attack the invariants.
+C-001
+stale epoch
+reject
+C-002
+snapshot mismatch
+C-003
+specification mismatch
+C-004
+expired authorization
+C-005
+revoked authorization
+C-006
+missing capability
+C-007
+scope escape
+C-008
+invalid transition
+C-009
+duplicate request
+C-010
+forged artifact
+C-011
+unbound evidence
+C-012
+self-verification
+C-013
+event tampering
+C-014
+replay divergence
+C-015
+failed required gate
+C-016
+blocked required gate
+C-017
+invalidated dependency
+C-018
+valid complete execution
+accept
+The **negative suite is as important as the positive suite**.
+Once this protocol is working, its evidence adapters can map onto real kernel validation:
+rustc
+rustfmt
+clippy
+rustdoc/rusttest
+KUnit
+kselftest
+KASAN
+KCSAN
+lockdep
+build matrix
+architecture matrix
+runtime/differential tests
+The Linux Rust documentation explicitly describes `rustfmt`, `clippy`, `rustdoc`, and Rust testing support, while KUnit provides a kernel-native test framework and machine-readable KTAP output.
+The important architectural distinction is:
+RFL-AE knows
+WHAT evidence means
+Linux tools determine
+WHETHER the underlying test actually passed
+That prevents RFL-AE from becoming another test-result hallucination layer.
+This should be added now, not later.
+Current Rust-for-Linux guidance explicitly says subsystem policy varies, the normal kernel maintainer model applies, and Rust patches should involve both relevant subsystem maintainers/reviewers and the Rust side.
+TECHNICAL PLANE
+Verification
+Technical Certificate
+REVIEW / GOVERNANCE
+subsystem maintainer
+Rust maintainer
+Upstream State
+This prevents the protocol from making the category error:
+technically verified
+= socially/upstream accepted
+Once the above is frozen, the next difficult layer is **not the agent swarm**.
+It is the C→Rust semantic reconstruction model.
+We need to represent:
+C source
+C semantic evidence
++-- types
++-- ownership
++-- lifetime
++-- aliasing
++-- locking
++-- interrupt context
++-- RCU context
++-- allocation context
++-- error behavior
++-- ABI
++-- initialization
++-- teardown
++-- concurrency
+Semantic Contract
+Rust Design IR
+Rust implementation
+That is where **KSIR + RECONSTRUCTION + CONTRACTS + DESIGN-IR** need to be connected into an actual compiler-like pipeline.
+The crucial invariant will be:
+**Rust code is not the source of truth for what the C subsystem means. The reconstructed semantic contract is.**
+That gives RFL-AE a defensible architecture for the actual Linux C→Rust problem rather than merely an elaborate agent orchestration system.

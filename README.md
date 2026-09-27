@@ -266,6 +266,29 @@ non-self-validating release gate.
   manifest; the inverted agent hierarchy; a one-engine-first milestone with **0 autonomous
   mutation agents**; eleven implementation phases; and a release gate without which RFL-AE v0.1
   cannot be called complete. Same provenance convention as `VERIFICATION.md`.
+- **[PROTOCOL-V01.md](PROTOCOL-V01.md)** (§718–§744, source §§1–§27) — the **Protocol Kernel
+  Specification v0.1**, freezing the protocol so it is *closed under execution*: every object
+  referenced by a transition has a canonical type, every state change has a deterministic rule,
+  and every rejection is machine-identifiable. The canonical domain model in which `Task`,
+  `Contract`, `Capability` and `Authorization` are **not interchangeable**; opaque newtype IDs so
+  code cannot compare `String` with `ArtifactId`; `KernelSnapshotId` resolving the `SnapshotId`
+  ambiguity; an `Epoch` with an executable `same_epoch` rule rather than a textual convention;
+  structural `Scope` with `contains()` as protocol logic; the absolute **capability ≠
+  authorization** distinction; a closed `OperationKind` with no arbitrary shell execution; typed
+  `OperationRequest` instead of natural-language instructions; a transition relation with **no
+  third state**; a stable `RejectionReason` taxonomy; explicit transition legality where
+  `Created -> Certified` yields `InvalidTransition`; `Task` separated from `TaskAttempt` rather
+  than allowing state rewinds; an event ledger chained by `previous_event` and `event_digest`;
+  the replay invariant `replay(events) == authoritative_state`; evidence strictly downstream of
+  execution; `EvidenceOutcome::Passed` **not** implying `Artifact::Verified`; verification as a
+  multi-dimensional relation; nine contract classes; the gate non-equivalences; a certificate
+  that is `Derive(...)` and never *"Agent says CERTIFIED"*; an executable `RELEASE_ELIGIBLE`
+  predicate; a tiny agent API; the proposed repository reorganisation; an 18-row conformance
+  matrix where **the negative suite is as important as the positive suite**; the kernel
+  verification bridge, where RFL-AE knows *what* evidence means and Linux tools determine
+  *whether* the test passed; maintainer authority as a separate plane; and the C→Rust
+  reconstruction model, where **the reconstructed semantic contract — not the Rust code — is the
+  source of truth**. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -293,7 +316,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§717 numbering. Every checkable
+a specification, so it sits outside the §1–§744 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -303,6 +326,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-two specification documents covering §1–§717 (§108 does not
+`v0.0` — documentation only. Twenty-three specification documents covering §1–§744 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
