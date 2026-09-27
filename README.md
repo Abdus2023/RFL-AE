@@ -8,10 +8,16 @@ non-self-validating release gate.
 
 ## Documents
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — the founding architecture specification:
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** (§1–§51) — the founding architecture specification:
   core C subsystem landscape, competency domains K0–K12, agent roles, KSIR, the evidence
   model, benchmark families B01–B10, migration planning (M0–M3, semantic cut), and the
   RFL-AE v0.1 module layout.
+- **[SPECIFICATION.md](SPECIFICATION.md)** (§52–§80) — the v0.1 engineering specification:
+  repository layout, immutable domain model, the contract set (function / ownership /
+  concurrency / execution-context / Rust Design IR), safety obligations, agent protocol and
+  authorization states, the layered verification pipeline (V0–V10), differential equivalence
+  dimensions (E0–E8), subsystem qualification, the Kernel Invariant Ledger, and the Migration
+  Certificate.
 
 ## Status
 

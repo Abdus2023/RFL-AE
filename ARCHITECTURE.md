@@ -2396,3 +2396,10 @@ From there we can define **RFL-AE v0.1 as an implementable repo specification**,
 - capability levels
 - tool interfaces
 - the first end-to-end C→Rust migration experiment
+
+---
+
+**Continues in [SPECIFICATION.md](SPECIFICATION.md)** (§52–§80) — the v0.1 engineering
+specification: repository layout, immutable domain model, the contract set, safety obligations,
+agent protocol and authorization states, layered verification, subsystem qualification, the
+Kernel Invariant Ledger, and the Migration Certificate.
