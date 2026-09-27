@@ -1,0 +1,379 @@
+# Verbatim phrases from the RFL-TRANSITION source (§19-§38).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+Next, we should formalize **`rfl-transition`**. This is the point where the architecture stops merely describing state changes and starts defining an executable protocol law.
+The crate should be intentionally small:
+crates/rfl-transition/
+├── Cargo.toml
+└── src/
+├── lib.rs
+├── engine.rs
+├── preconditions.rs
+├── transitions.rs
+├── rejection.rs
+├── authorization.rs
+├── replay.rs
+└── tests/
+├── epoch.rs
+└── adversarial.rs
+Dependency:
+rfl-transition
+Nothing above `rfl-transition` should be required to decide whether a protocol transition is valid.
+The transition relation
+The normative object is:
+\delta : (S,R,\Gamma) \rightarrow (S',E)
+`S` = current authoritative state
+`R` = requested operation
+`Γ` = authoritative context
+`S'` = resulting state
+`E` = ledger event
+Or, on rejection:
+\delta(S,R,\Gamma) \rightarrow Reject(reason)
+pub enum TransitionResult {
+Accepted {
+event: EventId,
+resulting_state: StateDigest,
+Rejected {
+reason: RejectionReason,
+There must be **no mutation before all preconditions pass**.
+That gives us:
+validate
+authorize
+check state
+check epoch
+check scope
+construct next state
+construct event
+commit
+mutate
+discover violation
+try to undo
+The latter creates rollback semantics that are much harder to make trustworthy.
+State should distinguish Task and Attempt
+pub struct TaskState {
+pub task: TaskId,
+pub epoch: Epoch,
+pub status: TaskStatus,
+pub attempt: Option<AttemptId>,
+pub enum TaskStatus {
+Created,
+Admitted,
+Authorized,
+Executing,
+Succeeded,
+Failed,
+Verified,
+Gated,
+Certified,
+And separately:
+pub enum AttemptStatus {
+Aborted,
+This lets us represent:
+Task T1
+├── Attempt A1 → Failed
+├── Attempt A2 → Failed
+└── Attempt A3 → Succeeded
+without rewriting the historical state of `T1`.
+Transition matrix
+The matrix should be normative.
+task valid
+authorization valid
+capability + scope + epoch
+valid execution evidence
+execution recorded
+independent verification
+required gates pass
+certification conditions
+Everything else is rejected unless explicitly specified.
+That means:
+Created → Certified
+is not "probably okay."
+It is simply:
+Rejected(InvalidTransition)
+Preconditions must be compositional
+Do not create one giant function:
+fn is_valid(request, state) -> bool
+check_task(...)
+check_epoch(...)
+check_snapshot(...)
+check_authorization(...)
+check_capability(...)
+check_scope(...)
+check_state(...)
+check_dependencies(...)
+check_duplicate(...)
+Each returns a typed result:
+pub enum CheckResult {
+Pass,
+Fail(RejectionReason),
+pub fn validate_request(...) -> Result<(), RejectionReason>
+can compose them.
+This is useful for two reasons.
+First, every rejection has a machine-readable cause.
+Second, tests can target individual invariants.
+Rejection taxonomy
+The taxonomy becomes part of the protocol API:
+pub enum RejectionReason {
+UnknownTask,
+UnknownActor,
+UnknownAuthorization,
+EpochMismatch,
+SnapshotMismatch,
+SpecificationMismatch,
+ProtocolMismatch,
+AuthorizationExpired,
+AuthorizationRevoked,
+CapabilityMissing,
+ScopeViolation,
+InvalidTaskState,
+InvalidTransition,
+ArtifactMissing,
+ArtifactMismatch,
+EvidenceMissing,
+EvidenceUnbound,
+SelfVerification,
+DuplicateOperation,
+ReplayConflict,
+GateFailure,
+GateBlocked,
+DependencyInvalidated,
+PolicyDenied,
+Do not return:
+"request invalid"
+as the authoritative result.
+That loses information needed for:
+auditing
+metrics
+adversarial tests
+debugging
+policy analysis
+Authorization checking
+Authorization should be checked against **all relevant dimensions**.
+├── actor
+├── task
+├── epoch
+├── operation
+├── capability
+├── scope
+└── expiration
+fn authorization_allows(
+authorization: &Authorization,
+request: &OperationRequest,
+now: Timestamp,
+) -> Result<(), RejectionReason>
+must verify:
+authorization.actor == request.actor
+authorization.task == request.task
+authorization.epoch == request.epoch
+authorization.capability permits request.operation
+authorization.scope contains request.target
+now < authorization.expires_at
+And revocation must be checked against authoritative protocol state.
+Scope needs a real type
+This is another place where `String` would be dangerous.
+pub scope: String
+define a structured scope.
+pub struct Scope {
+pub repository: Option<RepositoryId>,
+pub paths: Vec<PathScope>,
+pub configurations: Vec<ConfigurationScope>,
+pub architectures: Vec<ArchitectureId>,
+Then a request targeting:
+drivers/foo/bar.c
+can be evaluated against an explicit path scope.
+This prevents a particularly dangerous authorization pattern:
+authorized for:
+drivers/foo/
+actually modifies:
+kernel/sched/
+The transition engine should reject it before execution.
+Typed targets
+Likewise, `Target` should not be an arbitrary shell string.
+pub enum Target {
+Source(SourceRegion),
+MigrationUnit(MigrationUnitId),
+Artifact(ArtifactId),
+Contract(ContractId),
+Gate(GateId),
+Evidence(EvidenceId),
+Task(TaskId),
+ExecutionTarget
+BuildTarget
+TestTarget
+RepositoryTarget
+can be introduced if needed.
+The key rule is:
+Protocol semantics should not be encoded as shell syntax.
+Shell commands belong to an execution adapter.
+Execution adapter boundary
+Eventually:
+RFL protocol
+│ typed execution request
+Execution Adapter
+├── Cargo
+├── LLVM
+├── clang
+├── kernel build
+├── KUnit
+├── kselftest
+└── other tools
+The protocol never treats:
+make ...
+cargo ...
+./script.sh
+as inherently authoritative.
+The adapter returns an evidence-producing execution result.
+Duplicate requests
+The protocol needs idempotency.
+Request R42
+arrives twice.
+The second request must not silently execute twice.
+RequestId
+request ledger
+already accepted?
+Possible outcomes:
+same request + same content
+→ return recorded result
+same request + different content
+→ ReplayConflict
+This is much stronger than simply saying "duplicate requests aren't allowed."
+It defines their exact semantics.
+Content identity matters
+A `RequestId` alone is insufficient.
+R42 → Execute artifact A
+followed later by:
+R42 → Execute artifact B
+The identifier is identical, but the semantic request differs.
+Therefore the ledger should commit:
+RequestDigest =
+H(canonical(OperationRequest))
+same RequestId AND same RequestDigest
+means replay/idempotence.
+same RequestId AND different RequestDigest
+ReplayConflict
+Epoch invalidation
+Epoch should be checked at the transition boundary, not merely when the task begins.
+Epoch E17
+├── analyze source
+├── generate Rust
+└── source repository advances
+Epoch E18
+An old authorization from `E17` cannot authorize work against `E18`.
+Authorization(E17)
++ Request(E18)
+EpochMismatch
+This single rule eliminates a large class of stale-analysis bugs.
+Evidence cannot authorize itself
+Another critical invariant:
+supports verification
+NOT
+declares itself valid
+authorizes certification
+For example, a generated artifact must not contain metadata saying:
+"verified": true
+and have that metadata become verification authority.
+The protocol must require an independent verification transition producing its own evidence.
+Certificate construction
+Certification should therefore look approximately like:
+├── source identity
+├── semantic contracts
+├── design mappings
+├── verification evidence
+├── required gates
+├── dependency status
+└── epoch
+Certificate
+artifact.metadata.certified = true
+Certification is a **derived protocol fact**, not an artifact-provided property.
+The first complete state machine
+We can now write the authoritative lifecycle:
+│    CREATED   │
+│   ADMITTED   │
+│ AUTHORIZED   │
+│  EXECUTING   │
+│ Admit
+│ Authorize
+│ Execute
+┌─┴─┐
+fail │   │ complete
+FAILED  SUCCEEDED
+│ Verify
+VERIFIED
+│ Gate
+GATED
+│ Certify
+CERTIFIED
+And every arrow has explicit predicates.
+Important negative property
+The protocol must **not** guarantee:
+⇒ Linux upstream accepts patch
+⇒ RFL-AE technical certification conditions satisfied
+UpstreamAcceptanceState
+= separate governance state
+This is necessary because technical correctness and upstream acceptance are different authorities.
+Conformance properties
+Beyond the 18 individual tests, define protocol-level properties.
+### P1 — No unauthorized execution
+¬Authorized(request)
+⇒ ¬Executing(request)
+### P2 — No stale execution
+request.epoch != state.epoch
+⇒ Reject(EpochMismatch)
+### P3 — No scope escape
+target ∉ authorization.scope
+⇒ Reject(ScopeViolation)
+### P4 — No evidence without execution
+Evidence(subject)
+⇒ corresponding execution exists
+### P5 — No certification without verification
+Certified(task)
+⇒ Verified(task)
+### P6 — No certification with blocked required gate
+required_gate == Blocked
+⇒ ¬Certified
+### P7 — Replay determinism
+replay(ledger)
+== authoritative_state
+### P8 — Immutable history
+committed_event
+⇒ cannot be replaced by later event
+These become candidates for property-based testing later.
+Then comes `rfl-ledger`
+Once the transition engine is deterministic, `rfl-ledger` becomes comparatively straightforward:
+Transition
+Event
+Hash-chain validation
+Append-only ledger
+Replay
+State reconstruction
+The important architectural ordering is therefore:
+rfl-ledger
+rfl-evidence
+rfl-gates
+rather than implementing the ledger first and allowing it to become an unstructured event log.
+One deeper consequence
+At this point RFL-AE has acquired something more important than an "agent framework."
+It has a **small trusted computing base**:
+RFL-AE TCB
+│ Canonical types                         │
+│ Identity / digest semantics             │
+│ Epoch semantics                         │
+│ Authorization predicates                │
+│ Scope predicates                        │
+│ Transition relation                     │
+│ Event integrity                         │
+│ Replay semantics                        │
+│ Evidence binding                        │
+│ Gate algebra                            │
+everything else is subordinate
+│ LLMs                                    │
+│ Semantic analyzers                      │
+│ Code generators                         │
+│ Planners                                │
+│ Review agents                           │
+│ Build systems                           │
+│ Test systems                            │
+│ External tools                          │
+That is the architectural property worth protecting.
+**Agents may be wrong. Tools may fail. Generated code may be wrong. Analyses may disagree. But none of them gets to redefine protocol truth.**
+The next layer is therefore **`rfl-ledger`**, where we make that authority durable and replayable, then attack it with tampered events, duplicate requests, reordered events, forked histories, and divergent replay.

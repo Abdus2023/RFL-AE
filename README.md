@@ -341,6 +341,19 @@ non-self-validating release gate.
   self-verification attack as a transition invariant; the **18 adversarial conformance tests**,
   the last of which must accept; and `rfl-transition` as the next concrete layer. Same
   provenance convention as `VERIFICATION.md`.
+- **[RFL-TRANSITION.md](RFL-TRANSITION.md)** (§823–§842, source §§19–§38 — the author continued
+  `RFL-TYPES.md`'s numbering, so the offset is +804; untitled in the source) — formalizes
+  **`rfl-transition`**, where the architecture starts defining an executable protocol law. The
+  transition relation δ with **no mutation before all preconditions pass**; `TaskStatus`
+  separated from `AttemptStatus`; a normative transition matrix where everything not specified
+  is `Rejected(InvalidTransition)`; compositional precondition checks; a machine-readable
+  `RejectionReason` taxonomy; authorization checked against every dimension; structured `Scope`
+  and typed `Target`s, because protocol semantics must not be encoded as shell syntax; the
+  execution-adapter boundary; idempotency through `RequestId` plus `RequestDigest`; epoch
+  invalidation at the transition boundary; evidence that cannot authorize itself; certification
+  as a **derived protocol fact**; the first complete state machine; `Certified` not implying
+  upstream acceptance; conformance properties P1–P8; and the **small trusted computing base**
+  that nothing else gets to redefine. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -368,7 +381,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§822 numbering. Every checkable
+a specification, so it sits outside the §1–§842 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -378,6 +391,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-six specification documents covering §1–§822 (§108 does not
+`v0.0` — documentation only. Twenty-seven specification documents covering §1–§842 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

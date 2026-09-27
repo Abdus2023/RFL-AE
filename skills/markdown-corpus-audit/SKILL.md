@@ -65,7 +65,11 @@ Never `pip install --break-system-packages`.
 2. **Orphaned connectors fire only when an adjacent row has connectors.** A `▼`
    between two plain-text label rows is normal — that is what `dchain` produces
    — and must not be reported. An earlier over-strict version flagged 17
-   non-defects in one document.
+   non-defects in one document. The converse limitation: a connector passes if
+   **either** neighbour aligns, so a vertical run is accepted as long as one
+   end connects. A run whose top hangs free — like `RFL-TRANSITION.md` §837's
+   drop from a whole tree to `Certificate`, which is intended — is never
+   reported, and neither would be a genuinely disconnected end. Dump the block.
 3. **Off-centre means "the arrow does not land on a label character", not "every
    token is centred".** A multi-word label like `Agent A` tokenises into two
    columns; per-token centring flagged 9 correct rows.
@@ -103,10 +107,10 @@ Positive — the real corpus must be clean and must reproduce known figures:
 python3 skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108
 ```
 
-Expected: 26 documents, 821 sections, range `1 .. 822`, no duplicates,
+Expected: 27 documents, 841 sections, range `1 .. 842`, no duplicates,
 gaps `[108]`, `ALL FILES OK`, exit 0. Per-file figures to spot-check:
-`RFL-TYPES.md` 106 fences / 19 sections / `19/19 +803`;
-`PROOF-CARRYING.md` 206 fences / 29 sections / `29/29 +774`.
+`RFL-TRANSITION.md` 120 fences / 20 sections / `20/20 +804` (source §19–§38);
+`RFL-TYPES.md` 106 fences / 19 sections / `19/19 +803`.
 
 Links — `audit_file.py` only resolves **same-file** anchors and checks that a
 linked `.md` path *exists*; it does not verify that a cross-file anchor
@@ -118,7 +122,7 @@ python3 skills/markdown-corpus-audit/scripts/linkaudit.py \
     --allow skills/markdown-corpus-audit/SKILL.md
 ```
 
-Expected: 43 files, 638 local links, `broken: 0`, `excused: 2`, exit 0. The
+Expected: 44 files, 662 local links, `broken: 0`, `excused: 2`, exit 0. The
 `--allow` entries are files permitted to carry deliberately broken *example*
 links (this document demonstrates one below); they are reported but do not fail
 the run. Do not `--allow` a corpus document.

@@ -825,3 +825,20 @@ Current State × Operation × Preconditions
 and make the **18 attacks executable as conformance tests before adding any LLM/semantic agent code**.
 
 That changes RFL-AE from a specification describing a trustworthy agent architecture into a small, testable **authority kernel** that agents must obey.
+
+---
+
+**Done — see [RFL-TRANSITION.md](RFL-TRANSITION.md)** (§823–§842, source §§19–§38, continuing
+this document's own numbering), which formalizes **`rfl-transition`** as the point where the
+architecture stops describing state changes and starts defining an executable protocol law:
+the transition relation δ with **no mutation before all preconditions pass**; `TaskStatus`
+separated from `AttemptStatus`; a normative transition matrix where everything not specified is
+`Rejected(InvalidTransition)`; compositional precondition checks; a machine-readable
+`RejectionReason` taxonomy; authorization checked against every dimension; structured `Scope`
+and typed `Target`s, because protocol semantics must not be encoded as shell syntax; the
+execution-adapter boundary; idempotency through `RequestId` plus `RequestDigest`; epoch
+invalidation at the transition boundary; evidence that cannot authorize itself; certification
+as a **derived protocol fact**; the first complete state machine; the negative property that
+`Certified` does not imply upstream acceptance; conformance properties P1–P8; `rfl-ledger` next;
+and the **small trusted computing base** that nothing else gets to redefine. Same provenance
+convention as `VERIFICATION.md`.
