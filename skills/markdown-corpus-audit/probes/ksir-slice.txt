@@ -1,0 +1,421 @@
+# Verbatim phrases from the KSIR-SLICE source (§1-§19 + closing clause).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The next step is to turn the previous schema into a **minimal compilable implementation**.
+Keep the scope deliberately narrow:
+rfl-types
+rfl-ksir
+rfl-analysis-types
+rfl-analysis-compiler
+lab001
+KSIR artifact
+Do not connect the full scheduler yet.
+First prove that semantic reconstruction produces deterministic, evidence-bound artifacts.
+RFL-AE/
+crates/
+fixtures/
+include/
+lab_object.h
+lab_object.c
+expected/
+structural-ksir.json
+negative/
+tests/
+ksir/
+deterministic.rs
+provenance.rs
+unknown.rs
+conflict.rs
+snapshot.rs
+The important architectural distinction is:
+= universal identity / digest / snapshot primitives
+= semantic representation
+= observations produced by analyzers
+= one concrete observation producer
+This prevents the analyzer from becoming the semantic authority.
+Start with strongly typed IDs.
+macro_rules! id_type {
+($name:ident) => {
+#[serde(transparent)]
+pub struct $name(pub uuid::Uuid);
+id_type!(SnapshotId);
+id_type!(VariantId);
+id_type!(SubjectId);
+id_type!(SymbolId);
+id_type!(FunctionId);
+id_type!(ObjectId);
+id_type!(FieldId);
+id_type!(FactId);
+id_type!(UnknownId);
+id_type!(ConflictId);
+id_type!(ObservationId);
+id_type!(ArtifactId);
+Do not use strings everywhere.
+A string such as:
+"lab_object"
+is descriptive identity.
+A typed `ObjectId` is protocol identity.
+That distinction will matter when artifacts are invalidated.
+Do not let hashing leak throughout the system.
+pub struct Digest {
+pub algorithm: DigestAlgorithm,
+pub bytes: [u8; 32],
+pub enum DigestAlgorithm {
+Sha256,
+The algorithm is part of the identity.
+Later:
+sha256:...
+sha3-256:...
+blake3:...
+must never become ambiguous.
+The authoritative snapshot should be structural, not merely:
+Linux 6.x
+Use:
+pub struct KernelSnapshot {
+pub id: SnapshotId,
+pub source_tree_digest: Digest,
+pub source_version: Option<String>,
+`source_version` is descriptive.
+`source_tree_digest` is authoritative.
+This preserves:
+same version label ≠ same source tree
+pub struct BuildVariant {
+pub id: VariantId,
+pub architecture: Architecture,
+pub config_digest: Digest,
+pub toolchain: ToolchainIdentity,
+pub generated_inputs: Vec<ArtifactId>,
+For the first fixture:
+snapshot = fixture tree digest
+architecture = host architecture
+config = fixture configuration digest
+toolchain = exact compiler identity
+Later the same semantic subject can legitimately have:
+Variant A → x86_64 + CONFIG_X=y
+Variant B → arm64 + CONFIG_X=n
+Those are separate validity domains.
+pub struct Provenance {
+pub source: Vec<SourceRef>,
+pub backend: BackendIdentity,
+pub execution: ExecutionReceiptId,
+With:
+pub struct SourceRef {
+pub path: String,
+pub line_start: u32,
+pub line_end: u32,
+pub symbol: Option<String>,
+The compiler backend therefore cannot emit:
+field.value = protected
+without being able to answer:
+from where?
+using which backend?
+against which snapshot?
+from which execution?
+Now implement the semantic distinctions rather than collapsing everything into Rust-like ownership.
+pub enum OwnershipKind {
+Owned,
+Borrowed,
+Shared,
+RefCounted,
+RcuProtected,
+BorrowedFromUser,
+BorrowedFromKernel,
+DeviceOwned,
+DmaOwned,
+Mmio,
+Intrusive,
+Opaque,
+pub enum Nullability {
+NonNullEstablished,
+MayBeNull,
+CheckedBeforeUse,
+SentinelValue,
+pub enum Aliasing {
+Unique,
+ReadOnlyShared,
+MutableShared,
+InteriorMutable,
+LockDisjoint,
+RcuShared,
+AtomicShared,
+The combination is important.
+Ownership = RefCounted
+Aliasing  = MutableShared
+Lifetime  = Unknown
+is perfectly valid KSIR.
+It must not be "helpfully" converted into:
+Arc<T>
+pub enum LifetimeState {
+Allocated,
+Initialized,
+Published,
+Referenced,
+Quiescing,
+Reclaimable,
+Freed,
+pub struct LifetimeFact {
+pub object: ObjectId,
+pub state: LifetimeState,
+pub predecessor: Option<LifetimeState>,
+pub trigger: Option<SubjectId>,
+For `lab_object`, the expected conceptual chain is:
+ALLOCATED
+INITIALIZED
+PUBLISHED
+REFERENCED
+QUIESCING
+RECLAIMABLE
+FREED
+The analyzer does not need to prove the entire chain initially.
+It needs to report which transitions it has evidence for.
+pub enum SyncPrimitive {
+SpinLock,
+RawSpinLock,
+Mutex,
+RwLock,
+Atomic,
+Refcount,
+Rcu,
+Completion,
+WaitQueue,
+PerCpu,
+pub struct ConcurrencyFact {
+pub primitive: SyncPrimitive,
+pub operation: SyncOperation,
+pub protected: Vec<SubjectId>,
+pub context: ExecutionContext,
+lab_object.lock
+protects
+lab_object.value
+But this relation must come from observations.
+It should not be hard-coded merely because the field names suggest it.
+pub enum ExecutionContext {
+Process,
+Workqueue,
+SoftIrq,
+HardIrq,
+Nmi,
+Timer,
+Tasklet,
+RcuCallback,
+pub enum Sleepability {
+MustNotSleep,
+MaySleep,
+MustSleep,
+Conditional,
+pub struct ContextFact {
+pub function: FunctionId,
+pub contexts: Vec<ExecutionContext>,
+pub sleepability: Sleepability,
+pub enum Effect {
+Allocate,
+Free,
+Sleep,
+AcquireLock,
+ReleaseLock,
+RefAcquire,
+RefRelease,
+Publish,
+Unpublish,
+ScheduleCallback,
+CancelCallback,
+This becomes the basis for context checking.
+The analyzer output should look like this conceptually:
+"observation_id": "...",
+"snapshot": "...",
+"subject": "...",
+"fact_kind": "FunctionCall",
+"caller": "lab_schedule",
+"target": "schedule_work"
+"name": "compiler-frontend",
+"algorithm_revision": "..."
+"epistemic": "Observed",
+"execution_receipt": "...",
+"digest": "sha256:..."
+The observation says:
+this backend observed X.
+It does **not** say:
+X is semantically verified.
+The first reconciler can be extremely small.
+pub fn reconcile<T>(
+observations: &[AnalysisObservation<T>],
+) -> ReconciliationResult<T>
+T: Eq + Clone,
+// deterministic grouping and comparison
+Conceptually:
+0 observations
+→ InsufficientEvidence
+1 observation
+→ resolved provisional fact
+N identical observations
+→ Consistent
+N different observations
+→ Conflicted
+Later the reconciliation rules become domain-specific.
+Do not introduce weighted voting.
+The compiler backend should have no direct access to canonical protocol state.
+Protocol
+authorized execution
+Execution Runtime
+Compiler Backend
+ObservationBundle
+KSIR Reconciler
+The backend is therefore incapable of doing:
+state.migration = Verified
+Its only legitimate output is:
+observations
+unknowns
+execution references
+artifacts
+For `lab001`, implement only:
+A001 declarations
+A002 definitions
+A003 function calls
+A004 struct fields
+A005 basic field accesses
+A006 function-pointer/callback registration markers
+A007 compiler-visible layout
+Do not pretend this is already a kernel semantic analyzer.
+The capability status should explicitly be:
+SUPPORTED:
+ordinary structs
+ordinary functions
+direct calls
+field declarations
+basic field accesses
+PARTIALLY_SUPPORTED:
+macros
+typedef-heavy constructs
+OPAQUE:
+complex generated constructs
+inline assembly
+UNKNOWN:
+unresolved indirect calls
+unresolved ownership
+unresolved lifetime
+This is essential.
+Create a fixture where:
+struct lab_object *obj = get_object();
+schedule_work(&obj->work);
+put_object(obj);
+but the analyzer cannot establish whether:
+schedule_work()
+takes a reference.
+Expected result:
+Ownership:
+Lifetime:
+Callback lifetime:
+Severity:
+CRITICAL
+Migration:
+BLOCKED
+That is a successful test.
+The analyzer **failing safely** is part of correctness.
+Canonical serialization:
+canonical serialization
+SHA-256
+ksir_digest
+Two executions with identical:
+variant
+inputs
+tool identities
+algorithm revisions
+must produce the same canonical digest.
+Test:
+#[test]
+fn identical_input_produces_identical_ksir_digest() {
+let a = analyze_fixture();
+let b = analyze_fixture();
+assert_eq!(a.digest(), b.digest());
+But the stronger test is:
+fresh process
+fresh filesystem
+fresh analyzer invocation
+same inputs
+same semantic artifact
+same digest
+This should fail closed.
+Snapshot A
+Observation A
+KSIR A
+Contract A
+Then modify one source byte:
+Snapshot B
+The old KSIR must not silently remain current.
+Expected:
+KSIR-A = SUPERSEDED
+Contract-A = STALE
+Design-A = STALE
+Verification-A = STALE
+Certificate-A = INVALIDATED / SUPERSEDED
+The old artifacts remain historically available.
+They simply lose current authority.
+Create:
+KSIR-GATE-001
+Requirements:
+1. snapshot bound
+2. variant bound
+3. execution receipt bound
+4. every fact has provenance
+5. unsupported constructs preserved
+6. conflicts explicit
+7. critical unknowns explicit
+8. deterministic serialization
+9. analyzer failure cannot produce VERIFIED
+10. stale snapshot cannot produce current KSIR
+The gate output should be:
+PASS
+FAIL
+BLOCKED
+not:
+87% semantic confidence
+After this slice, RFL-AE has a genuine semantic pipeline:
+TRUSTED
+Snapshot / Variant
+Authorized Execution
+Observation
+Evidence
+Unknown
+Reconcile
+Blocker
+Semantic
+Fact
+Conflict
+And the authority separation is now concrete:
+Component
+May observe
+May derive
+May verify
+May authorize
+Compiler backend
+Limited
+KSIR reconciler
+Contract compiler
+Rust designer
+Implementer
+Execution runtime
+Execution facts
+No semantic interpretation
+Verification engine
+Gate engine
+Evidence/results
+Gate state
+Protocol kernel
+Protocol state
+State transition
+No semantic proof
+Protocol transitions only
+Release authority
+Existing artifacts
+Consumes gates
+Release
+That separation is the point of the architecture.
+Now implement **`rfl-analysis-types` and `rfl-analysis-compiler` around `lab001`**, with the first executable chain:
+fixture
+BuildManifest
+authorized compiler execution
+ExecutionReceipt
+reconciliation
+deterministic digest
+Only after that produces a real artifact should ownership/lifetime/context reconstruction be expanded.
+This gives us the first point where RFL-AE can be tested against **actual evidence rather than architectural assertions**.

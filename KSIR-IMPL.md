@@ -1031,3 +1031,23 @@ M0
 **Do not implement RCU, DMA, full architecture analysis, or whole-kernel analysis yet.**
 
 The next concrete artifact should therefore be the **actual `rfl-types` + `rfl-ksir` crate skeleton and Rust schemas**, followed immediately by the `lab001` compiler-observation backend. That gives RFL-AE its first executable semantic core rather than another document describing one.
+
+---
+
+**Done — see [KSIR-SLICE.md](KSIR-SLICE.md)** (§660–§679, source §§1–§19 plus the unnumbered
+*immediate next build target*), which turns that schema into a minimal compilable
+implementation: the `rfl-types` / `rfl-ksir` / `rfl-analysis-types` /
+`rfl-analysis-compiler` split that stops the analyzer from becoming the semantic authority,
+`id_type!` so that a typed `ObjectId` is protocol identity rather than a descriptive string,
+a `Digest` that carries its algorithm, snapshot identity where `source_tree_digest` is
+authoritative and `source_version` merely descriptive, build variants as separate validity
+domains, mandatory provenance, the pointer model in which `Ownership = RefCounted`,
+`Aliasing = MutableShared`, `Lifetime = Unknown` is valid KSIR and must not be "helpfully"
+converted into `Arc<T>`, lifetime / concurrency / context / effect models, the observation
+schema that says *this backend observed X* and never *X is semantically verified*, a
+reconciler with no weighted voting, the compiler-backend boundary that cannot write
+`state.migration = Verified`, the deliberately narrow `A001…A007` first analyzer with explicit
+`SUPPORTED / PARTIALLY_SUPPORTED / OPAQUE / UNKNOWN` capability status, the first **deliberate
+failure** where the analyzer failing safely is the correct result, deterministic KSIR digests,
+fail-closed snapshot invalidation, `KSIR-GATE-001`, and the authority-separation table. Same
+provenance convention as `VERIFICATION.md`.

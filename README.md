@@ -211,6 +211,23 @@ non-self-validating release gate.
   synthesis; critical-unknown blocker extraction; the `lab001` corpus treated as a fixture
   specification; acceptance gates `KSIR-001…020`; the end-to-end execution chain; and the fixed
   M0 implementation order. Same provenance convention as `VERIFICATION.md`.
+- **[KSIR-SLICE.md](KSIR-SLICE.md)** (§660–§679, source §§1–§19 plus the unnumbered *immediate
+  next build target*) — turning that schema into a **minimal compilable implementation**. The
+  `rfl-types` / `rfl-ksir` / `rfl-analysis-types` / `rfl-analysis-compiler` split, which is what
+  stops the analyzer from becoming the semantic authority; `id_type!` so a typed `ObjectId` is
+  protocol identity rather than a descriptive string; a `Digest` that carries its algorithm;
+  snapshot identity where `source_tree_digest` is authoritative and `source_version` merely
+  descriptive; build variants as separate validity domains; mandatory provenance; a pointer
+  model in which `Ownership = RefCounted`, `Aliasing = MutableShared`, `Lifetime = Unknown` is
+  valid KSIR and must **not** be "helpfully" converted into `Arc<T>`; lifetime, concurrency,
+  context and effect models; an observation schema that says *this backend observed X* and never
+  *X is semantically verified*; a reconciler with **no weighted voting**; a compiler-backend
+  boundary that cannot write `state.migration = Verified`; the deliberately narrow `A001…A007`
+  first analyzer with explicit `SUPPORTED / PARTIALLY_SUPPORTED / OPAQUE / UNKNOWN` capability
+  status; the first **deliberate failure**, where the analyzer failing safely is the correct
+  result; deterministic KSIR digests; fail-closed snapshot invalidation; `KSIR-GATE-001`
+  returning `PASS / FAIL / BLOCKED` and not `87% semantic confidence`; and the
+  authority-separation table. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -238,7 +255,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§659 numbering. Every checkable
+a specification, so it sits outside the §1–§679 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -248,6 +265,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Nineteen specification documents covering §1–§659 (§108 does not
+`v0.0` — documentation only. Twenty specification documents covering §1–§679 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
