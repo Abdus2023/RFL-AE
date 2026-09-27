@@ -61,9 +61,18 @@ non-self-validating release gate.
   reconciliation, semantic fact vs verified claim, the semantic dependency graph, migration
   dependency extraction, agent decomposition and the worker contract, the critical unknown
   detector, the crate structure, and acceptance criteria SR-001–SR-012.
+- **[CONTRACTS.md](CONTRACTS.md)** (§292–§320) — kernel contract reconstruction:
+  `KernelContract` and contract status, preconditions and postconditions, invariants and
+  invariant preservation, contract normal form, the 17-domain contract surface, temporal /
+  concurrency / context contracts, API contract generation, Rust design alternatives, design
+  obligations, unsafe boundary generation and the unsafe budget, contract-to-test generation,
+  contract differential testing, contract refinement, contract completeness and the
+  `G-CONTRACT-001`…`008` gate, the contract compiler, the agent boundary, the contract review
+  agent, the counterexample engine, the migration unit contract package, the end-to-end proof
+  chain, and the Rust Design IR transition.
 
 ## Status
 
-`v0.0` — documentation only. Eight specification documents covering §1–§291 (§108 does not
+`v0.0` — documentation only. Nine specification documents covering §1–§320 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

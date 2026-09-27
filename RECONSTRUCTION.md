@@ -2261,3 +2261,15 @@ That gives us the foundation needed for the next layer: **Kernel Contract Recons
 turning the KSIR facts into explicit preconditions, postconditions, invariants, temporal
 obligations, concurrency obligations, ABI obligations, and migration-preservation obligations
 that the Rust design must satisfy.
+
+---
+
+**Done — see [CONTRACTS.md](CONTRACTS.md)** (§292–§320), which turns those facts into what
+the Rust implementation must preserve: `KernelContract` and contract status, preconditions
+and postconditions, invariants and invariant preservation, contract normal form, the
+contract categories surface, temporal / concurrency / context contracts, API contract
+generation, Rust design alternatives, design obligations, unsafe boundary generation and the
+unsafe budget, contract-to-test generation, contract differential testing, contract
+refinement, contract completeness and the completeness gate, the contract compiler, the agent
+boundary, the contract review agent, the counterexample engine, the migration unit contract
+package, the end-to-end proof chain, and the Rust Design IR transition.
