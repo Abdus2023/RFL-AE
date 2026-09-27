@@ -18,7 +18,13 @@ non-self-validating release gate.
   authorization states, the layered verification pipeline (V0–V10), differential equivalence
   dimensions (E0–E8), subsystem qualification, the Kernel Invariant Ledger, and the Migration
   Certificate.
+- **[FORMAL-CORE.md](FORMAL-CORE.md)** (§81–§107) — the frozen formal core: KSIR v0.1, core
+  Rust domain types, evidence-carrying values, the two-axis status algebra, the evidence and
+  provenance model, the 20-benchmark suite (C01–C10, R01–R05, V01–V05), anti-hallucination and
+  contradiction benchmarks, tool authority levels T0–T6, agent separation, the migration
+  manifest and commit protocol, subsystem QA (LOCK/RCU/MM/SCHED), and RFL-AE-LAB-001.
 
 ## Status
 
-`v0.0` — specification only. No implementation, schemas, or benchmarks have been written yet.
+`v0.0` — documentation only. Three specification documents (§1–§107); no Rust crates, JSON
+schemas, or executable benchmarks have been written yet.

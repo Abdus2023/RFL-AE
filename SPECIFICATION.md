@@ -1284,3 +1284,9 @@ followed by the **first 20 kernel competency benchmarks**.
 
 Those two pieces will turn the architecture above into something implementable rather than
 conceptual.
+
+---
+
+**Done — see [FORMAL-CORE.md](FORMAL-CORE.md)** (§81–§107), which freezes the formal core:
+KSIR v0.1, core Rust domain types, evidence-carrying values, the two-axis status algebra, the
+evidence and provenance model, and the 20-benchmark suite.
