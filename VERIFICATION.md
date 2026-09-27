@@ -1626,3 +1626,15 @@ At this point the system has crossed an important architectural boundary:
 The next layer should therefore be **the Gate Engine + Migration Certificate compiler**,
 because that is where all four IRs become an enforceable release decision rather than merely a
 collection of artifacts.
+
+---
+
+**Done — see [GATES.md](GATES.md)** (§387–§418, source §§1–§32), which specifies the gate
+engine and migration certificate compiler: the gate invariant, the `Gate` model and severity,
+the constrained `GatePredicate` algebra, `GateEvaluation` and `FAIL != BLOCKED`, the gate
+dependency graph and gate families, snapshot / scope / contract / design / unsafe / ABI /
+context / lifetime / concurrency / verification gates, evidence validity and freshness, gate
+policy versioning, release eligibility and the release predicate, unknown handling, the
+migration certificate compiler and its structure, certificate invalidation, release authority,
+human review, the complete RFL-AE architecture, the four-layer trust architecture, and the
+Execution & Evidence Runtime.

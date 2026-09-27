@@ -91,9 +91,18 @@ non-self-validating release gate.
   verification compiler, the crate architecture, the migration certificate, and the complete
   evidence chain. Section headings carry machine-readable `source: VERIFICATION.md §n`
   provenance comments.
+- **[GATES.md](GATES.md)** (§387–§418, source §§1–§32) — the gate engine and migration
+  certificate compiler: the gate invariant, the `Gate` model and severity, the constrained
+  `GatePredicate` algebra, `GateEvaluation` and `FAIL != BLOCKED`, the gate dependency graph
+  and gate families, the snapshot / scope / contract / design / unsafe / ABI / context /
+  lifetime / concurrency / verification gates, evidence validity and freshness, gate policy
+  versioning, release eligibility and the release predicate, unknown handling, the migration
+  certificate compiler and its structure, certificate invalidation, release authority, human
+  review, the complete RFL-AE architecture, the four-layer trust architecture, and the
+  Execution & Evidence Runtime. Same provenance convention as `VERIFICATION.md`.
 
 ## Status
 
-`v0.0` — documentation only. Eleven specification documents covering §1–§386 (§108 does not
+`v0.0` — documentation only. Twelve specification documents covering §1–§418 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
