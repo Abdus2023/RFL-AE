@@ -1,0 +1,364 @@
+# Verbatim phrases from the RFL-LEDGER source (§39-§61).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+Next is **`rfl-ledger`**. This is where RFL-AE turns the transition engine's decisions into an authoritative, tamper-evident history.
+The key design decision is:
+The ledger is not a log of what agents claim happened. It is the serialized history of protocol transitions.
+crates/rfl-ledger/
+├── Cargo.toml
+└── src/
+├── lib.rs
+├── ledger.rs
+├── event.rs
+├── digest.rs
+├── append.rs
+├── replay.rs
+├── validation.rs
+├── fork.rs
+└── tests/
+├── tamper.rs
+├── ordering.rs
+├── duplicate.rs
+└── fork.rs
+Dependency:
+rfl-types
+rfl-transition
+rfl-ledger
+`rfl-ledger` should not execute kernel commands or decide whether a gate passes.
+Its responsibility is:
+EVENT INTEGRITY + ORDER + APPEND + REPLAY + HISTORY VALIDATION
+Event identity
+The event needs two different identities.
+### Logical identity
+pub struct EventId(pub Uuid);
+### Content identity
+pub struct EventDigest(pub Digest);
+They must not be conflated.
+Two events can have different IDs but identical content.
+Conversely, the same ID with different content is a replay conflict.
+EventId
+≠ EventDigest
+Canonical event
+The event should contain everything necessary to reconstruct the transition.
+pub struct Event {
+pub id: EventId,
+pub sequence: u64,
+pub epoch: Epoch,
+pub actor: AgentId,
+pub task: TaskId,
+pub request: RequestId,
+pub operation: OperationKind,
+pub previous_event: Option<EventId>,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+pub event_digest: Digest,
+But there is an important question:
+**What exactly is hashed?**
+Never hash the serialized object including `event_digest` itself.
+EventCore
+canonical encoding
+Event { ..., event_digest }
+pub struct EventCore {
+event_digest = H(canonical(EventCore))
+Chain integrity
+A simple event sequence:
+├── sequence = 0
+├── previous_event = None
+└── digest = D0
+├── sequence = 1
+├── previous_event = E0
+└── digest = D1
+├── sequence = 2
+├── previous_event = E1
+└── digest = D2
+The chain invariant is:
+E[n].previous_event == E[n-1].id
+E[n].previous_state == E[n-1].resulting_state
+except for the genesis event.
+This gives us two independent consistency relationships:
+history linkage + state linkage
+Why both are necessary
+Imagine an attacker changes:
+E17.resulting_state
+but leaves:
+E18.previous_event
+unchanged.
+The event chain still looks superficially connected.
+E18.previous_state != modified(E17.resulting_state)
+reveals the corruption.
+Conversely, changing:
+is caught by the event-chain invariant.
+event_digest + previous_event + previous_state
+form three separate integrity checks.
+Ledger API
+Keep the public interface small.
+pub trait Ledger {
+fn append(&mut self, event: Event)
+-> Result<(), LedgerError>;
+fn get(&self, id: EventId)
+-> Option<&Event>;
+fn iter(&self)
+-> impl Iterator<Item = &Event>;
+fn head(&self)
+fn replay(&self)
+-> Result<State, ReplayError>;
+fn validate(&self)
+The actual persistence backend can later be:
+MemoryLedger
+FileLedger
+GitLedger
+DatabaseLedger
+ContentAddressedLedger
+RemoteLedger
+without changing protocol semantics.
+Persistence is not authority
+This distinction is important.
+A database row does not become authoritative merely because it exists.
+The authority chain is:
+Transition relation
+valid Event
+validated ledger
+authoritative state
+A corrupted persistence backend must fail validation.
+database says Certified
+is not enough.
+The system must establish:
+ledger replay
+→ state
+→ Certified
+The replay engine should start from a known genesis state.
+pub fn replay(
+events: &[Event],
+initial: State,
+) -> Result<State, ReplayError>
+For each event:
+1. validate event digest
+2. validate sequence
+3. validate previous_event
+4. validate previous_state
+5. validate transition
+6. apply transition
+7. compare resulting state
+8. continue
+The critical point is step 5.
+Replay should **re-run the protocol transition semantics**, not simply trust:
+event.resulting_state
+Otherwise an attacker could forge a valid-looking state digest.
+Replay invariant
+For every valid event:
+Apply(S_n,E_{n+1}) = S_{n+1}
+replay(E0...En)
+== authoritative_state
+stored resulting_state != recomputed resulting_state
+ReplayConflict
+not "best effort recovery."
+Determinism requirement
+Replay creates a hard requirement:
+The authoritative transition function must be deterministic.
+It cannot depend on:
+current wall clock
+randomness
+LLM output
+network state
+filesystem discovery
+environment variables
+CPU timing
+thread scheduling
+unless those values are explicitly represented as transition inputs.
+same State + same Request + same authoritative context
+same Result
+This is one reason the protocol kernel must remain separate from probabilistic agents.
+Time handling
+There are two different kinds of time.
+### Protocol time
+Used for authorization expiration:
+now >= expires_at
+### Historical time
+Recorded as evidence about when something happened.
+They must not be confused.
+A replay of an event from yesterday must not suddenly fail because:
+now > event.authorization.expires_at
+The replay engine should evaluate the event using its **recorded transition context**, not today's wall clock.
+Otherwise historical replay becomes time-dependent.
+Transition context
+This suggests a useful object:
+pub struct TransitionContext {
+pub protocol_epoch: Epoch,
+pub observed_time: Timestamp,
+pub authorization_state: AuthorizationState,
+pub dependency_state: DependencyState,
+For live execution:
+TransitionContext
+← current authoritative state
+For replay:
+← event-bound historical context
+This avoids hidden inputs.
+Fork detection
+A ledger can fork:
+E11A   E11B
+Both may claim:
+previous_event = E10
+but they represent incompatible histories.
+RFL-AE must not silently merge them.
+pub enum HistoryStatus {
+Linear,
+Forked,
+Corrupt,
+A fork should produce:
+ForkDetected
+and normally block certification.
+Why forks matter for agent systems
+Suppose two agents independently authorize different implementations:
+Agent A: E50 → artifact A
+Agent B: E50 → artifact B
+If both are treated as one history, later evidence can accidentally become ambiguous.
+branch A   branch B
+must remain explicit.
+Then governance can decide which branch is canonical.
+The ledger itself should not use majority voting to decide.
+Canonical branch
+pub struct BranchId(pub Uuid);
+pub struct BranchHead {
+pub branch: BranchId,
+pub head: EventId,
+History
+├── branch A → E73
+└── branch B → E71
+can coexist without pretending they are one linear history.
+Later, a merge operation can be introduced explicitly if the semantics justify it.
+Do not add merge semantics now.
+No silent history rewriting
+The following operation should not exist:
+replace_event(old, new)
+old event
+immutable
+new event
+new history
+If a previous decision was wrong:
+CorrectionRequested
+The history records the correction.
+It does not rewrite E31.
+This is essential for AI-generated engineering, where mistakes and revisions are expected.
+Correction ≠ erasure
+Introduce a future event family:
+Correction
+Invalidation
+Supersession
+Revocation
+E20: VerificationPassed
+E21: EvidenceInvalidated
+E22: VerificationInvalidated
+The historical fact:
+"E20 happened"
+remains true.
+The derived fact:
+"artifact is currently verified"
+becomes false.
+This is exactly the distinction between:
+current canonical state
+Event immutability
+A useful invariant:
+EventDigest(E) = H(Core(E))
+modify Core(E)
+Digest(E) changes
+chain validation fails
+The implementation should make mutation difficult at the type level.
+For example, expose:
+pub struct Event(EventCore);
+with private fields, and require construction through validated constructors.
+Avoid:
+pub everything: ...
+where arbitrary callers can construct malformed events.
+Genesis event
+A ledger needs an explicit genesis.
+pub struct Genesis {
+pub protocol: Digest,
+pub initial_state: Digest,
+Genesis itself should be immutable.
+The genesis digest establishes the root of the history.
+Ledger validation levels
+We should distinguish:
+STRUCTURAL_VALID
+SEMANTIC_VALID
+REPLAY_VALID
+Structural:
+hashes correct
+sequence correct
+links correct
+Semantic:
+transitions allowed
+Replay:
+reconstructed state matches
+A ledger can therefore report:
+Structural = PASS
+Semantic    = FAIL
+Replay      = BLOCKED
+rather than collapsing everything into `invalid`.
+Adversarial ledger suite
+Now expand the earlier 18 tests with ledger-specific attacks.
+### L1 — Modify event content
+E7.operation:
+Execute → Verify
+DigestMismatch
+### L2 — Modify resulting state
+StateChainMismatch
+### L3 — Modify previous event
+HistoryLinkMismatch
+### L4 — Reorder events
+E7, E8, E6
+SequenceViolation
+### L5 — Duplicate event
+DuplicateEvent
+### L6 — Duplicate request with different digest
+### L7 — Fork
+E10 → E11A
+E10 → E11B
+### L8 — Forge resulting state
+An attacker constructs a syntactically valid event whose state digest claims:
+without performing transitions.
+### L9 — Historical expiration trap
+Replay an event whose authorization expired **after the event occurred**.
+Replay succeeds
+This is a particularly important positive test.
+The ledger now has a strong security boundary
+REQUEST
+│ TRANSITION
+│ ENGINE
+accepted event
+│ EVENT VALIDATOR │
+│ APPEND-ONLY
+│ LEDGER
+REPLAY ENGINE
+RECONSTRUCTED STATE
+This gives us a much stronger property than ordinary agent traces:
+trace
+= narrative
+ledger
+= executable history
+The next major boundary: `rfl-evidence`
+With transitions and history established, the next problem is:
+How do we establish facts about the outside world without allowing those facts to become self-authenticating?
+That is `rfl-evidence`.
+The pipeline becomes:
+PROTOCOL
+OperationRequest
+Transition
+Execution
+External observation
+│ rfl-evidence    │
+│ artifact        │
+│ input           │
+│ command         │
+│ environment     │
+│ toolchain       │
+│ output          │
+│ outcome         │
+Verification
+Gates
+The crucial next distinction will be:
+OBSERVATION
+≠ EVIDENCE RECORD
+≠ VERIFICATION
+≠ CERTIFICATION
+`rfl-evidence` should therefore be designed around **binding evidence to exact artifacts, exact inputs, exact execution, exact environment, and exact epoch**, rather than around a generic `passed: bool`.
+That is the next layer to formalize.

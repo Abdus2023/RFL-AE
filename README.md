@@ -354,6 +354,18 @@ non-self-validating release gate.
   as a **derived protocol fact**; the first complete state machine; `Certified` not implying
   upstream acceptance; conformance properties P1–P8; and the **small trusted computing base**
   that nothing else gets to redefine. Same provenance convention as `VERIFICATION.md`.
+- **[RFL-LEDGER.md](RFL-LEDGER.md)** (§843–§865, source §§39–§61 — continuing the author's
+  numbering, so the offset stays +804; untitled in the source) — specifies **`rfl-ledger`**, where
+  transition decisions become an authoritative, tamper-evident history: *the ledger is not a log
+  of what agents claim happened; it is the serialized history of protocol transitions*.
+  `EventId` versus `EventDigest`; a canonical `EventCore` that excludes its own digest; history
+  linkage plus state linkage as independent integrity checks; a small `Ledger` API over
+  interchangeable backends, because **persistence is not authority**; replay that re-runs
+  transition semantics instead of trusting stored state; the determinism requirement; protocol
+  time versus historical time; fork detection and explicit branches with no majority voting; no
+  silent history rewriting, and **correction ≠ erasure**; immutable events and an explicit
+  genesis; structural, semantic and replay validation levels; the ledger attacks L1–L9; and
+  `rfl-evidence` as the next boundary. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -381,7 +393,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§842 numbering. Every checkable
+a specification, so it sits outside the §1–§865 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -391,6 +403,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-seven specification documents covering §1–§842 (§108 does not
+`v0.0` — documentation only. Twenty-eight specification documents covering §1–§865 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

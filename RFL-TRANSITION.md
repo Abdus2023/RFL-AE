@@ -880,3 +880,19 @@ That is the architectural property worth protecting.
 **Agents may be wrong. Tools may fail. Generated code may be wrong. Analyses may disagree. But none of them gets to redefine protocol truth.**
 
 The next layer is therefore **`rfl-ledger`**, where we make that authority durable and replayable, then attack it with tampered events, duplicate requests, reordered events, forked histories, and divergent replay.
+
+---
+
+**Done — see [RFL-LEDGER.md](RFL-LEDGER.md)** (§843–§865, source §§39–§61, continuing this
+document's own numbering), which specifies **`rfl-ledger`**, where the transition engine's
+decisions become an authoritative, tamper-evident history — *the ledger is not a log of what
+agents claim happened; it is the serialized history of protocol transitions*: `EventId` versus
+`EventDigest`; a canonical `EventCore` that excludes its own digest; history linkage plus state
+linkage as independent integrity checks; a small `Ledger` API over interchangeable backends,
+because **persistence is not authority**; replay that re-runs transition semantics rather than
+trusting stored state; the determinism requirement; protocol time versus historical time and an
+explicit `TransitionContext`; fork detection and explicit branches with no majority voting; no
+silent history rewriting, and **correction ≠ erasure**; immutable events and an explicit
+genesis; structural, semantic and replay validation levels; the adversarial ledger attacks
+L1–L9, including the historical-expiration trap that must succeed; and `rfl-evidence` as the
+next boundary. Same provenance convention as `VERIFICATION.md`.
