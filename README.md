@@ -35,9 +35,16 @@ non-self-validating release gate.
   `ContractKnowledge<T>`, `RustDesign`, `UnsafeObligation`, `AgentOutcome`), the
   `TransitionEngine`, protocol invariants P1–P10, the conformance and adversarial protocol
   suites, agent manifests, scheduling, and the PHASE 0–11 development order.
+- **[TRANSITIONS.md](TRANSITIONS.md)** (§173–§203) — `RFL-AE-PROTOCOL-001`, the normative
+  transition system: the 7-stage validation kernel, the 11-row normative transition table,
+  illegal transitions as specification, transition predicates, typed `ProtocolError` rejection
+  reasons, unknown severity, dependency conditions, semantic vs. source dependency, contract
+  normal form, claim graph, epochs and staleness propagation, writer leases, the read/write
+  authority matrix, `VerificationMatrix` and gate algebra, protocol self-verification, proof
+  obligations P-001–P-010, and the trusted/untrusted LLM boundary.
 
 ## Status
 
-`v0.0` — documentation only. Five specification documents covering §1–§172 (§108 does not
+`v0.0` — documentation only. Six specification documents covering §1–§203 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

@@ -1449,3 +1449,10 @@ NEW STATE
 
 That table is where the architecture stops being descriptive and becomes **mechanically
 enforceable**.
+
+---
+
+**Done — see [TRANSITIONS.md](TRANSITIONS.md)** (§173–§203), which specifies that table: the
+7-stage validation kernel, the 11-row normative transition table, illegal transitions,
+transition predicates, typed rejection reasons, staleness propagation, the read/write authority
+matrix, gate algebra, proof obligations P-001–P-010, and the trusted/untrusted LLM boundary.
