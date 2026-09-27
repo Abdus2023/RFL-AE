@@ -1428,3 +1428,9 @@ The next layer should be the **actual Rust protocol implementation**: concrete `
 `Capability`, `Artifact`, `Event`, `Evidence`, `Authorization`, `Conflict`, and `Gate` types,
 their state-transition rules, and the conformance tests that make the protocol mechanically
 enforceable.
+
+---
+
+**Done — see [RUST-CORE.md](RUST-CORE.md)** (§136–§172), which specifies those types
+concretely: 31 Rust type declarations, the `TransitionEngine`, protocol invariants P1–P10, the
+conformance and adversarial protocol suites, and the PHASE 0–11 development order.

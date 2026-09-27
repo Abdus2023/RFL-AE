@@ -29,9 +29,15 @@ non-self-validating release gate.
   store, immutable event ledger and deterministic replay, execution receipts, agent topology
   and the 63-agent taxonomy, worktree isolation, patch promotion, the readiness predicate, the
   implementation-admission gate, data vs. control plane, and the L0–L13 v0.2 layer stack.
+- **[RUST-CORE.md](RUST-CORE.md)** (§136–§172) — the concrete Rust core: 31 declared types
+  (opaque IDs, `KernelSnapshot`, `Epistemic<T>`, `VerificationStatus`, `Task`, `Scope`,
+  `Capability`, `CapabilityGrant`, `Authorization`, `Artifact`, `Event`, `Evidence`, `Contract`,
+  `ContractKnowledge<T>`, `RustDesign`, `UnsafeObligation`, `AgentOutcome`), the
+  `TransitionEngine`, protocol invariants P1–P10, the conformance and adversarial protocol
+  suites, agent manifests, scheduling, and the PHASE 0–11 development order.
 
 ## Status
 
-`v0.0` — documentation only. Four specification documents covering §1–§135 (§108 does not
+`v0.0` — documentation only. Five specification documents covering §1–§172 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
