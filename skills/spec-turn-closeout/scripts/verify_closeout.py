@@ -23,6 +23,27 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 import auditlib as A  # noqa: E402
 
 
+_ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven",
+         "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+         "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+         "eighty", "ninety"]
+
+
+def number_word(n: int) -> str:
+    """1..99 as the capitalised English word the README Status line uses.
+
+    Compound tens are hyphenated ("Twenty-one"), so the caller's regex must
+    accept a hyphen. Anything outside 1..99 falls back to the numeral.
+    """
+    if 0 <= n < 20:
+        return _ONES[n].capitalize()
+    if 20 <= n < 100:
+        t, o = divmod(n, 10)
+        return _TENS[t].capitalize() + ("-" + _ONES[o] if o else "")
+    return str(n)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--new", required=True)
@@ -59,13 +80,10 @@ def main() -> int:
         total_secs += len(s)
         if s:
             max_sec = max(max_sec, max(s))
-    words = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six",
-             7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven",
-             12: "Twelve", 13: "Thirteen", 14: "Fourteen", 15: "Fifteen",
-             16: "Sixteen", 17: "Seventeen", 18: "Eighteen", 19: "Nineteen",
-             20: "Twenty"}
-    want_count = words.get(len(all_md), str(len(all_md)))
-    m = re.search(r"(\w+) specification documents covering \u00a71\u2013\u00a7(\d+)", readme)
+    want_count = number_word(len(all_md))
+    # `[\w-]+` not `\w+`: the count is a hyphenated compound past twenty
+    # ("Twenty-one"), and `\w` stops at the hyphen so it used to match "one".
+    m = re.search(r"([\w-]+) specification documents covering \u00a71\u2013\u00a7(\d+)", readme)
     if not m:
         problems.append("README Status line not found or not in the expected form")
     else:

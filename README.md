@@ -228,6 +228,25 @@ non-self-validating release gate.
   result; deterministic KSIR digests; fail-closed snapshot invalidation; `KSIR-GATE-001`
   returning `PASS / FAIL / BLOCKED` and not `87% semantic confidence`; and the
   authority-separation table. Same provenance convention as `VERIFICATION.md`.
+- **[KSIR-ANALYZER.md](KSIR-ANALYZER.md)** (§680–§701, source §§1–§21 plus the unnumbered *next
+  implementation sequence*) — building the **first real analyzer** rather than another schema.
+  The frozen analyzer boundary in which the analyzer *never receives permission to mutate
+  canonical protocol state*; `AnalysisArtifact`, so the chain is
+  `KSIR fact ↓ Observation ↓ AnalysisArtifact ↓ ExecutionReceipt` rather than
+  `"compiler said so"`; a normalization layer keeping compiler-specific structures out of KSIR;
+  a reproducible `BackendIdentity` where `executable_digest` and `algorithm_revision` mean an
+  algorithm change invalidates derived facts even with the source tree unchanged; build
+  invocation driven by a real `BuildManifest` and recorded as the **actual command**; the
+  deliberately small `lab001` fixture with a shim so it stays independently buildable; the
+  expected structural graph; observed vs. derived vs. unknown facts that must never be
+  collapsed; direct-call effect propagation with `DerivedFact` pointing back to both
+  observations; versioned `RuleIdentity`; the callback, context, ownership and lifetime rules
+  that stop at `UNKNOWN` instead of guessing; a structural KSIR artifact in which `UNKNOWN` is
+  useful data; three negative tests (analyzer failure, conflicting observations, snapshot
+  substitution) establishing `execution failure ≠ semantic false ≠ verification failure`; the
+  first `KSIR-GATE-001` execution, where **BLOCKED is the correct result**; Contract IR with
+  `C005 = BLOCKED`; and the two properties that become executable tests. Same provenance
+  convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -255,7 +274,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§679 numbering. Every checkable
+a specification, so it sits outside the §1–§701 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -265,6 +284,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty specification documents covering §1–§679 (§108 does not
+`v0.0` — documentation only. Twenty-one specification documents covering §1–§701 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

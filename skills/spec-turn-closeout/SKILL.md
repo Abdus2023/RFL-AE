@@ -55,8 +55,11 @@ corpus maximum from the directory rather than trusting the README.
 ## Traps
 
 1. **Editing the README by hand and getting the count wrong.** The check derives
-   the count from the directory and the spelled-out word from a table, so
-   "Thirteen" after a fourteenth file lands is caught.
+   the count from the directory and the spelled-out word from `number_word()`,
+   so "Thirteen" after a fourteenth file lands is caught. Past twenty the word
+   is a hyphenated compound ("Twenty-one"), and the status regex must accept a
+   hyphen — `(\w+)` matches only the tail and reports "one". Both the table and
+   the regex were wrong at twenty-one; `number_word()` now generates 1..99.
 2. **Forgetting the forward link.** The previous document is the one nobody is
    looking at when the new one is written.
 3. **Assuming a push succeeded.** `git push` can fail on auth or a non-fast-
@@ -81,9 +84,9 @@ python3 skills/spec-turn-closeout/scripts/verify_closeout.py \
     --new ORCHESTRATION.md --prev EXECUTION.md
 ```
 
-Expected: `CLOSE-OUT OK`, exit 0, with `documents : 20`, `corpus max section:
-679`, forward link `yes`, README bullet `yes`, and status
-`Twenty specification documents covering §1–§679`.
+Expected: `CLOSE-OUT OK`, exit 0, with `documents : 21`, `corpus max section:
+701`, forward link `yes`, README bullet `yes`, and status
+`Twenty-one specification documents covering §1–§701`.
 
 Negative tests — each must exit 1:
 

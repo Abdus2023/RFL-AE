@@ -1,0 +1,334 @@
+# Verbatim phrases from the KSIR-ANALYZER source (§1-§21 + closing clause).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The next slice should establish **compiler acquisition → normalized observations → structural KSIR**.
+Once this works, semantic reconstruction can safely build on it.
+RFL-AE Protocol
+authorization / snapshot / scope / capability / epoch
+Execution Runtime
+exact command + receipt
+rfl-analysis-compiler
+source → compiler frontend → normalized observations
+ObservationBundle
+Reconciliation
+KSIR v0.1
+The analyzer **never receives permission to mutate canonical protocol state**.
+Every analyzer result should have a concrete artifact identity.
+pub struct AnalysisArtifact {
+pub artifact_id: ArtifactId,
+pub snapshot: SnapshotId,
+pub variant: VariantId,
+pub backend: BackendIdentity,
+pub observations: Vec<ObservationId>,
+pub unknowns: Vec<UnknownId>,
+pub conflicts: Vec<ConflictId>,
+pub execution: ExecutionReceiptId,
+pub digest: Digest,
+This solves an important provenance problem:
+KSIR fact
+Observation
+AnalysisArtifact
+ExecutionReceipt
+rather than:
+"compiler said so"
+Do not let compiler-specific structures become KSIR.
+Use an intermediate normalization layer:
+clang / GCC / sparse / ...
+CompilerObservation
+NormalizedObservation
+pub enum NormalizedFact {
+FunctionDeclared {
+function: FunctionId,
+FunctionDefined {
+DirectCall {
+caller: FunctionId,
+callee: FunctionId,
+StructDeclared {
+object: ObjectId,
+FieldDeclared {
+field: FieldId,
+FieldAccess {
+access: AccessKind,
+Layout {
+subject: SubjectId,
+size: u64,
+alignment: u64,
+The compiler-specific parser can change later without changing KSIR.
+pub struct BackendIdentity {
+pub name: String,
+pub version: String,
+pub executable_digest: Digest,
+pub schema_version: String,
+pub algorithm_revision: String,
+compiler-frontend
+version: X.Y.Z
+executable: sha256:...
+schema: compiler-observation/0.1
+algorithm: clang-structural-v1
+This matters because changing the analyzer algorithm can invalidate derived facts even when the source tree is unchanged.
+The first backend should never construct an imaginary compiler invocation.
+Instead:
+BuildManifest
+source tree
+generated headers
+compiler
+flags
+include paths
+environment
+CommandSpec
+The execution receipt records the **actual command**.
+For the fixture:
+cc -I fixtures/lab001/include -c fixtures/lab001/c/lab_object.c -o ...
+Whatever command is actually used becomes evidence.
+Do not merely record:
+"compiled successfully"
+Use something close to:
+struct lab_object {
+refcount_t refs;
+spinlock_t lock;
+int value;
+struct work_struct work;
+Functions:
+lab_alloc
+lab_get
+lab_put
+lab_update
+lab_schedule
+lab_work
+But there is one important adjustment:
+**Do not require Linux's entire `refcount_t`, `spinlock_t`, and workqueue implementation for the first structural backend.**
+Provide a fixture shim:
+fixtures/lab001/include/
+linux/
+refcount.h
+spinlock.h
+workqueue.h
+lab_object.h
+The analyzer then sees realistic type and call structure while the fixture remains independently buildable.
+The first analyzer should produce approximately:
+STRUCT lab_object
+refs : refcount_t
+lock : spinlock_t
+value : int
+work : work_struct
+FUNCTION lab_alloc
+FUNCTION lab_get
+FUNCTION lab_put
+FUNCTION lab_update
+FUNCTION lab_schedule
+FUNCTION lab_work
+CALL GRAPH
+allocation
+refcount_inc
+refcount_dec
+lab_free
+spin_lock
+value WRITE
+spin_unlock
+schedule_work
+container_of
+value ACCESS
+At this stage, the analyzer is allowed to know:
+lab_schedule calls schedule_work
+but it is **not yet allowed to infer**:
+schedule_work guarantees object lifetime
+That belongs to semantic reconstruction.
+This distinction should become executable.
+OBSERVED
+lab_schedule → schedule_work
+DERIVED
+lab_schedule establishes callback reachability
+UNKNOWN
+callback lifetime guarantee
+This gives:
+source observation
+semantic derivation
+remaining uncertainty
+The system should never collapse these three states.
+Now add the first derived analysis.
+A → B
+B has effect E
+A has effect E
+But preserve provenance:
+pub struct DerivedFact {
+pub fact: FactId,
+pub inputs: Vec<ObservationId>,
+pub rule: RuleIdentity,
+OBS-001:
+lab_update calls spin_lock
+OBS-002:
+spin_lock acquires SpinLock
+DER-001:
+lab_update acquires SpinLock
+The derived fact must point back to both observations.
+Never encode semantic inference as anonymous code.
+pub struct RuleIdentity {
+pub rule_id: String,
+pub revision: String,
+CALL-EFFECT-PROPAGATION-001
+Then if the algorithm changes:
+CALL-EFFECT-PROPAGATION-002
+Old derived facts remain historically interpretable.
+schedule_work(&obj->work)
+callback registration
+Represent:
+pub struct CallbackFact {
+pub callback: CallbackId,
+pub registration_site: SubjectId,
+pub callback_function: FunctionId,
+pub dispatcher: Option<FunctionId>,
+pub source_object: Option<ObjectId>,
+The first result can safely be:
+callback = lab_work
+registration = lab_schedule
+dispatcher = UNKNOWN
+This is preferable to pretending the dispatcher is known.
+schedule_work → WORKQUEUE
+derive:
+reachable_context = WORKQUEUE
+This is a semantic derivation:
+callback registration + dispatcher context = callback context
+If dispatcher context cannot be established:
+lab_work.context = UNKNOWN
+Again: no guessing.
+Start with only one safe rule:
+refcount_inc(obj)
+→ evidence of reference acquisition
+refcount_dec(obj)
+→ evidence of reference release
+Do **not** initially infer:
+refcount_inc → ownership
+because a reference count can have different semantic roles.
+RefcountFact
+counter
+acquire operations
+release operations
+zero transition
+destruction relation
+Only when the destruction relation is established can the lifetime model become stronger.
+is followed by:
+put(obj)
+the analyzer should ask:
+Does callback registration itself retain obj?
+If the evidence does not establish that:
+callback lifetime
+This is exactly the kind of issue RFL-AE exists to expose.
+A normal source translator might generate apparently valid Rust.
+RFL-AE must instead say:
+Migration blocked:
+callback lifetime is unresolved.
+The first real artifact should resemble:
+"schema": "rfl-ksir/0.1",
+"functions": [
+"objects": [
+"calls": [
+["lab_get", "refcount_inc"],
+["lab_put", "refcount_dec"],
+["lab_update", "spin_lock"],
+["lab_update", "spin_unlock"],
+["lab_schedule", "schedule_work"]
+"callbacks": [
+"registration": "lab_schedule",
+"callback": "lab_work",
+"dispatcher": "UNKNOWN"
+"unknowns": [
+"domain": "CallbackReachability",
+"reason": "ExternalDefinitionUnavailable"
+Notice that `UNKNOWN` is actually useful data.
+Inject a malformed source fixture.
+The expected result is **not**:
+KSIR = empty
+status = VERIFIED
+It must be:
+AnalysisStatus:
+FAILED
+KSIR:
+unavailable / partial
+Evidence:
+execution receipt exists
+Verification:
+BLOCKED
+This distinction is foundational:
+execution failure ≠ semantic false ≠ verification failure
+Create two observation backends:
+backend-A:
+sizeof(lab_object) = 32
+backend-B:
+sizeof(lab_object) = 40
+The reconciler must produce:
+CONFLICT
+critical conflict = true
+KSIR gate = BLOCKED
+It must not select the compiler result merely because it is "more trusted."
+If a precedence rule is eventually needed, that rule itself must be explicit, versioned, and evidence-backed.
+This should be one of the first adversarial tests.
+Request:
+snapshot A
+Execution:
+source tree B
+Expected:
+SnapshotMismatch
+No observation becomes canonical.
+Likewise:
+Variant A
+Compiler execution:
+Variant B
+must produce:
+VariantMismatch
+The actual flow should now be:
+MU-000001
+protocol authorization
+compiler execution
+receipt R-001
+observations O-*
+reconciler
+resolved
+conflict
+quarantine
+KSIR-GATE-001
+PASS
+A **BLOCKED** result here is not a failed implementation.
+It is the correct result when semantic evidence is insufficient.
+Only after the structural KSIR gate works should we compile the first contract.
+For `lab_object`:
+refcount observations
+lock observations
+callback observations
+field accesses
+lifetime unknown
+Contract
+The contract should initially contain:
+C001: object must be initialized before publication
+C002: value mutation requires the established lock
+C003: reference acquisition must precede asynchronous use
+C004: final reference release permits destruction
+C005: callback must not access object after destruction
+C006: callback execution context must satisfy its operations
+And because C005 cannot yet be established:
+C005 = BLOCKED
+That is exactly what we want.
+At this point we can state a much stronger property than the original architecture documents:
+**If a KSIR fact is admitted into the canonical semantic artifact, then its source snapshot, build variant, analyzer execution, provenance, and derivation path are mechanically recoverable.**
+And separately:
+**If a required semantic property cannot be established, the absence is represented as UNKNOWN or CONFLICT rather than silently converted into a positive claim.**
+Those two properties should become executable tests.
+NOW
+rfl-analysis-types
+compiler backend
+normalized observations
+structural reconciler
+KSIR serializer
+KSIR-GATE-001
+THEN
+context propagation
+effect propagation
+callback graph
+refcount analysis
+lifetime reconstruction
+lock/access analysis
+Contract IR generation
+obligations
+first Rust Design IR
+full evidence → verification → gate → certificate
+The key change from the previous stage is that **we now have a concrete implementation boundary**.
+The next useful work is writing the actual crate contents and fixture implementation, then running the first deterministic KSIR test suite.

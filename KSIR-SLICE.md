@@ -926,3 +926,24 @@ fixture
 ```
 
 Only after that produces a real artifact should ownership/lifetime/context reconstruction be expanded. This gives us the first point where RFL-AE can be tested against **actual evidence rather than architectural assertions**.
+
+---
+
+**Done — see [KSIR-ANALYZER.md](KSIR-ANALYZER.md)** (§680–§701, source §§1–§21 plus the unnumbered
+*next implementation sequence*), which builds the first real analyzer instead of another schema:
+the frozen analyzer boundary in which the analyzer **never receives permission to mutate
+canonical protocol state**, `AnalysisArtifact` so the chain is
+`KSIR fact ↓ Observation ↓ AnalysisArtifact ↓ ExecutionReceipt` rather than `"compiler said so"`,
+a normalization layer that keeps compiler-specific structures out of KSIR, a reproducible
+`BackendIdentity` where `executable_digest` and `algorithm_revision` mean an algorithm change
+invalidates derived facts even with the source tree unchanged, build invocation driven by a real
+`BuildManifest` and recorded as the **actual command**, the deliberately small `lab001` fixture
+with a shim so it stays independently buildable, the expected structural graph, observed versus
+derived versus unknown facts that must never be collapsed, direct-call effect propagation with
+`DerivedFact` pointing back to both observations, versioned `RuleIdentity`, the callback,
+context, ownership and lifetime rules that stop at `UNKNOWN` instead of guessing, the structural
+KSIR artifact where `UNKNOWN` is useful data, three negative tests (analyzer failure, conflicting
+observations, snapshot substitution) proving `execution failure ≠ semantic false ≠ verification
+failure`, the first `KSIR-GATE-001` execution where **BLOCKED is the correct result**, Contract IR
+with `C005 = BLOCKED`, and the two properties that become executable tests. Same provenance
+convention as `VERIFICATION.md`.
