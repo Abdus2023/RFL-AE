@@ -42,9 +42,17 @@ non-self-validating release gate.
   normal form, claim graph, epochs and staleness propagation, writer leases, the read/write
   authority matrix, `VerificationMatrix` and gate algebra, protocol self-verification, proof
   obligations P-001–P-010, and the trusted/untrusted LLM boundary.
+- **[KSIR.md](KSIR.md)** (§204–§250) — the Kernel Semantic IR: layering (structural /
+  behavioral / contractual), the `Ksir` root, `KsirFunction`, the pointer model with
+  `PointerOwnership` / `Nullability` / `AliasingModel`, object and storage-class models, the
+  lifetime graph and refcount/RCU contracts, the concurrency graph and sync-primitive taxonomy,
+  execution context, sleepability, allocation context, the effects system, callback and
+  temporal graphs, memory ordering, architecture dependencies, ABI, FFI, user memory, DMA,
+  MMIO, invariants, semantic classification, the query engine and blocker query, failure modes
+  F1–F7, acceptance criteria KSIR-001–KSIR-015, and the QA corpus.
 
 ## Status
 
-`v0.0` — documentation only. Six specification documents covering §1–§203 (§108 does not
+`v0.0` — documentation only. Seven specification documents covering §1–§250 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

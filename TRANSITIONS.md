@@ -1277,3 +1277,14 @@ and invariants.
 
 That is where the system starts becoming specifically capable of understanding why a Linux C
 subsystem can or cannot be translated into a safe Rust design.
+
+---
+
+**Done — see [KSIR.md](KSIR.md)** (§204–§250), which defines that semantic representation:
+the structural / behavioral / contractual layers, `Ksir` and `KsirFunction`, the pointer
+model (`PointerOwnership` / `Nullability` / `AliasingModel`), object and storage-class models,
+the lifetime graph and refcount/RCU contracts, the concurrency graph, execution context,
+sleepability, allocation context, the effects system, callback and temporal graphs, memory
+ordering, architecture dependencies, ABI, FFI, user memory, DMA, MMIO, invariants, the
+semantic-fact taxonomy, the query engine and blocker query, failure modes F1–F7, acceptance
+criteria KSIR-001–KSIR-015, and the adversarial KSIR QA corpus.
