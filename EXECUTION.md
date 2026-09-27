@@ -1468,3 +1468,24 @@ The next artifact should be the **Migration Orchestrator / Scheduler** — lease
 |-----------|----------------|
 | Gate Engine | Does the evidence satisfy the declared requirements? |
 | Certificate Compiler | Produce the bounded, immutable migration result |
+
+---
+
+**Done — see [ORCHESTRATION.md](ORCHESTRATION.md)** (§463–§517, source §§1–§55), which specifies
+the Orchestration IR and deterministic scheduler: the scheduler as a **protocol executor** rather
+than an intelligent project manager, the orchestration architecture and `OrchestrationPlan`, the
+semantic migration graph and why `source graph ≠ semantic graph`, migration-unit readiness,
+scheduling as a state transition (`scheduler ≠ state authority`), the agent model, capability as
+demonstrable evidence rather than competence, capability and authority matching, work and worktree
+leases, epochs and stale work, determinism and the scheduling key, fairness quotas,
+dependency-aware and critical-path scheduling, the event-driven scheduler and its transition,
+immutable assignments, agent crash recovery and recovery states, idempotency and at-least-once
+dispatch, duplicate execution versus independence, quarantine and its recovery, conflict
+resolution without voting, unknowns as scheduling dependencies, automatic evidence tasks, the
+orchestration state machine, deterministic replay and logical time, the scheduler event log,
+restart recovery and external reconciliation, resource scheduling and starvation, cancellation,
+priority inversion, the multi-agent verification topology and the no-self-verification rule,
+orchestration policy, acceptance criteria `ORCH-001`–`ORCH-017`, the scheduler crate
+architecture, the complete system, the resulting authority model, the frozen
+**RFL-AE Core Invariants** `RFL-AE-I001`–`I015`, and what remains. Same provenance convention as
+`VERIFICATION.md`.
