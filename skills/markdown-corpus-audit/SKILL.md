@@ -103,10 +103,32 @@ Positive — the real corpus must be clean and must reproduce known figures:
 python3 skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108
 ```
 
-Expected: 14 documents, 516 sections, range `1 .. 517`, no duplicates,
+Expected: 16 documents, 574 sections, range `1 .. 575`, no duplicates,
 gaps `[108]`, `ALL FILES OK`, exit 0. Per-file figures to spot-check:
-`ORCHESTRATION.md` 226 fences / 55 sections / `55/55 +462`;
-`EXECUTION.md` 170 fences / 44 sections / `44/44 +418`.
+`PROTOCOL-IMPL.md` 102 fences / 28 sections / `28/28 +547`;
+`PROTOCOL-KERNEL.md` 150 fences / 30 sections / `30/30 +517`.
+
+Links — `audit_file.py` only resolves **same-file** anchors and checks that a
+linked `.md` path *exists*; it does not verify that a cross-file anchor
+(`OTHER.md#412-foo`) actually resolves, and it regexes raw source. Use the
+dedicated checker, which renders every file and parses the HTML:
+
+```bash
+python3 skills/markdown-corpus-audit/scripts/linkaudit.py \
+    --allow skills/markdown-corpus-audit/SKILL.md
+```
+
+Expected: 33 files, 351 local links, `broken: 0`, `excused: 2`, exit 0. The
+`--allow` entries are files permitted to carry deliberately broken *example*
+links (this document demonstrates one below); they are reported but do not fail
+the run. Do not `--allow` a corpus document.
+
+Three bugs this checker had to survive, all of which produced plausible-looking
+wrong answers rather than crashes: keys must be repo-relative paths, not
+basenames (`README.md` exists at both the root and `audit/`); file references
+resolve relative to the *containing* file's directory, not the repo root; and
+an anchor-only href must map to the same file rather than being re-joined with
+its own directory.
 
 Negative — a deliberately broken fixture must be caught. Build it:
 

@@ -1,0 +1,219 @@
+# Verbatim phrases from the PROTOCOL-IMPL.md source (source §1-§28).
+# One phrase per line, copied from the SOURCE. Used by audit_file.py --probes.
+The next artifact should now be the actual protocol kernel API and transition implementation.
+The design should freeze around one invariant:
+No agent writes canonical state directly.
+Check Preconditions
+Construct Event
+Check Invariants
+CAS Append
+Canonical State
+Use this as the first implementation skeleton:
+The first implementation deliberately excludes:
+KSIR analyzer
+Rust designer
+kernel source analysis
+execution sandbox
+Those attach later.
+The common types crate must contain no protocol transition logic.
+typed_id!(TaskId);
+typed_id!(MigrationUnitId);
+typed_id!(AgentId);
+typed_id!(CapabilityId);
+typed_id!(AuthorizationId);
+typed_id!(CommandId);
+typed_id!(EventId);
+typed_id!(LeaseId);
+typed_id!(GateId);
+The important property is that:
+TaskId != AgentId
+TaskId != MigrationUnitId
+AuthorizationId != CapabilityId
+even though all are physically UUIDs.
+Do not pass arbitrary strings as hashes.
+SHA-256
+can be used.
+The hashing algorithm itself should be explicit in the serialized representation:
+Eventually this can support additional algorithms without changing the semantic meaning of Digest.
+Snapshot identity is fundamental.
+But do not make source_version authoritative.
+The authoritative identity is the immutable digest.
+For a build variant:
+Do not represent this as a free-form string.
+The protocol kernel knows these operations.
+It does not know what an LLM thinks about them.
+The command becomes the only public request mechanism.
+This is the optimistic concurrency contract.
+Authorization must be explicit.
+This prevents the classic failure:
+ImplementationAgent
+SubmitVerification
+The command validator rejects it.
+Capability and authorization remain separate.
+An agent can possess:
+Capability::Verify
+without currently possessing:
+Authorization::Verify(MigrationUnit X)
+Both checks are required.
+Use deterministic containers such as BTreeMap where ordering can become observable.
+Do not make state hashing depend on unspecified hash-map iteration order.
+Notice what is missing:
+confidence: f64
+There is no confidence score.
+The protocol deals in explicit state and evidence.
+This becomes the heart of rfl-protocol.
+The ordering matters.
+Do not allow the reducer to determine whether an actor was authorized.
+Authorization must be established before event construction.
+This lets the event store perform the final CAS.
+Current State
+TransitionEngine
+TransitionPlan
+NewState
+EventStore
+The event describes the accepted transition, not the requested operation.
+The reducer is intentionally boring.
+That is a feature.
+The reducer must never perform:
+network I/O
+filesystem I/O
+LLM calls
+Git operations
+compiler execution
+test execution
+clock reads
+random generation
+authorization lookup outside state
+It transforms:
+State + Event → State
+and nothing else.
+That makes it testable and replayable.
+First implementation can be in-memory.
+The append implementation:
+Later implementations can use:
+append-only files
+content-addressed storage
+without changing protocol semantics.
+This creates a very strong property:
+event.state_before
+actual state
+reducer
+event.state_after
+Any divergence is detected.
+The first integration test should be almost trivial.
+This test establishes the core architecture.
+Likewise:
+The protocol must explicitly prove:
+This is not merely documentation.
+It is an executable security invariant.
+Agent A's result is now stale.
+The artifact may remain historically useful.
+It simply loses current canonical authority.
+Also test:
+modified payload
+modified actor
+modified command ID
+modified snapshot
+modified epoch
+modified previous digest
+modified sequence
+deleted event
+duplicated event
+reordered event
+Before implementing anything above the protocol:
+must require:
+cargo check
+cargo test
+deterministic replay passes
+illegal transitions rejected
+authorization violations rejected
+scope violations rejected
+epoch violations rejected
+CAS race rejected
+event tampering detected
+event deletion detected
+event reordering detected
+projection reconstruction passes
+state digest deterministic
+no network dependency
+no wall-clock dependency
+no LLM dependency
+And critically:
+NO EXECUTION EVIDENCE
+NO VERIFIED GATE
+The gate itself should eventually consume an execution receipt rather than trusting the developer's assertion that tests passed.
+The dependency rule should now be frozen:
+MAY depend on:
+MUST NOT depend on:
+LLM SDKs
+Git clients
+kernel analyzers
+This is important because the protocol kernel is supposed to be the lower-level authority substrate.
+We now have a concrete hierarchy:
+Protocol Core
+immutable events
+canonical state
+Release Gate
+The important inversion is that agents become clients of the protocol, not owners of the protocol.
+After this kernel, the correct progression is:
+P0  Protocol types
+P1  Transition engine
+P2  In-memory event store
+P3  Deterministic replay
+P4  Conformance/adversarial suite
+P5  Persistent event store
+P6  Evidence binding
+P7  Gate engine
+P8  KSIR integration
+P9  Contract integration
+P10 Orchestration integration
+Do not implement P8–P10 before P0–P4 are mechanically green.
+The protocol kernel is the foundation on which the rest of RFL-AE can safely become autonomous.
+That is the first real executable theorem of the system.
+DiscoverMigration
+MapMigration
+SubmitAdversarialVerification
+ResolveQuarantine
+AdvanceEpoch
+AdversarialVerification
+AnalyzeKernel
+ConstructContract
+ConstructRustDesign
+ModifyImplementation
+ExecuteTests
+AdversarialVerify
+MigrationDiscovered
+MigrationMapped
+DesignSubmitted
+TestingAuthorized
+VerificationSubmitted
+AdversarialVerificationSubmitted
+ReviewAuthorized
+ReleaseApproved
+MigrationReleased
+MigrationQuarantined
+QuarantineResolved
+EpochAdvanced
+DuplicateMigration
+UnknownMigration
+InvalidState
+ConcurrentWriter
+HeadMismatch
+SequenceMismatch
+StateBeforeMismatch
+StateAfterMismatch
+PROTO-GATE-001
+rfl-types
+rfl-protocol
+tree_digest
+source_version
+BuildVariantId
+config_digest
+toolchain_digest
+BTreeMap<MigrationUnitId, MigrationRecord>
+blocking_unknowns
+migration_lifecycle_replays_deterministically
+cannot_submit_contract_before_mapping
+implementation_agent_cannot_verify
+stale_epoch_cannot_mutate_state
+modified_event_is_rejected

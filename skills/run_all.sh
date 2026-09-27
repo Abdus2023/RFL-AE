@@ -33,30 +33,34 @@ $PY -c "import markdown; print('markdown:', markdown.__version__)" 2>/dev/null \
   || echo "markdown: NOT INSTALLED -- render checks will be SKIPPED"
 
 echo
-echo "════════ 1/6 geometry self-test ════════"
+echo "════════ 1/7 geometry self-test ════════"
 python3 skills/ascii-diagram-forge/scripts/examples.py > /tmp/_geo.log 2>&1
 rc=$?
 tail -16 /tmp/_geo.log
 [ $rc -ne 0 ] && { echo ">>> stage FAILED (exit $rc)"; fail=1; }
 
-stage "2/6 skills are well-formed" \
+stage "2/7 skills are well-formed" \
   $PY skills/skill-creator/scripts/validate_skill.py skills/
 
 # --strict: a render check that could not run must fail the stage, not pass it
-stage "3/6 corpus audit (14 documents)" \
+stage "3/7 corpus audit (16 documents)" \
   $PY skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108 --strict
 
-stage "4/6 last document audited in full" \
-  $PY skills/markdown-corpus-audit/scripts/audit_file.py PROTOCOL-KERNEL.md \
-      --range 518-547 --source-name PROTOCOL-KERNEL.md --offset 517 --strict \
-      --probes skills/markdown-corpus-audit/probes/protocol-kernel.txt
+stage "4/7 every internal link resolves (rendered HTML)" \
+  $PY skills/markdown-corpus-audit/scripts/linkaudit.py \
+      --allow skills/markdown-corpus-audit/SKILL.md
 
-stage "5/6 close-out ritual verified" \
+stage "5/7 last document audited in full" \
+  $PY skills/markdown-corpus-audit/scripts/audit_file.py PROTOCOL-IMPL.md \
+      --range 548-575 --source-name PROTOCOL-IMPL.md --offset 547 --strict \
+      --probes skills/markdown-corpus-audit/probes/protocol-impl.txt
+
+stage "6/7 close-out ritual verified" \
   $PY skills/spec-turn-closeout/scripts/verify_closeout.py \
-      --new PROTOCOL-KERNEL.md --prev ORCHESTRATION.md
+      --new PROTOCOL-IMPL.md --prev PROTOCOL-KERNEL.md
 
 echo
-echo "════════ 6/6 negative tests (each MUST fail) ════════"
+echo "════════ 7/7 negative tests (each MUST fail) ════════"
 mkdir -p /tmp/negtest /tmp/negtest_splice/diag
 cat > /tmp/negtest/BROKEN.md <<'EOF'
 # Broken specimen
@@ -134,6 +138,11 @@ printf '# F\n\n## 1. First\n\n```text\n@@DFOO@@\n```\n' > /tmp/negtest_splice/T.
 neg "splice aborts on an unreferenced diagram" \
   $PY skills/placeholder-splice/scripts/splice.py /tmp/negtest_splice/T.md \
       /tmp/negtest_splice/diag --dry-run
+
+# BROKEN.md carries `](#4-does-not-exist)` and `](NOPE.md)`; no --allow here,
+# so the link checker must fail rather than excuse them.
+neg "link checker catches a broken anchor and a missing target" \
+  $PY skills/markdown-corpus-audit/scripts/linkaudit.py --root /tmp/negtest
 
 echo
 if [ $fail -ne 0 ]; then

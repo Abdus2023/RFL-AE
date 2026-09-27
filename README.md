@@ -147,6 +147,20 @@ non-self-validating release gate.
   direction without authority recursion, the first executable vertical slice, the three
   protocol theorems, and the separation of semantic, protocol, execution, scheduling and
   release authority. Same provenance convention as `VERIFICATION.md`.
+- **[PROTOCOL-IMPL.md](PROTOCOL-IMPL.md)** (§548–§575, source §§1–§28) — the protocol kernel
+  as a concrete API and transition implementation: the repository skeleton, `rfl-types` with
+  the `typed_id!` macro so `TaskId != AgentId` even though both are UUIDs, the `Digest` type
+  and explicit `DigestAlgorithm`, snapshot identity where the immutable digest is
+  authoritative, `MigrationState`, `Operation`, `TransitionCommand` and its `ExpectedState`
+  optimistic-concurrency contract, explicit `Authorization` and `AuthorityClass`, capability
+  kept separate from authorization, `ProtocolState` over `BTreeMap` for deterministic hashing,
+  `MigrationRecord` with no confidence score, the `TransitionEngine` and its validation
+  ordering, `TransitionPlan`, `ProtocolEvent` and `EventKind`, the deliberately boring reducer
+  and what it must never do, the in-memory `EventStore` and its CAS append, `replay` with
+  `state_before`/`state_after` divergence detection, the lifecycle / illegal-transition /
+  authorization / epoch / tamper tests, the `PROTO-GATE-001` checklist, the frozen crate
+  dependency boundary, and the P0–P10 implementation progression. Rust here is specification,
+  not a compiled crate. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -174,7 +188,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§517 numbering. Every checkable
+a specification, so it sits outside the §1–§575 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -184,6 +198,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Fifteen specification documents covering §1–§547 (§108 does not
+`v0.0` — documentation only. Sixteen specification documents covering §1–§575 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

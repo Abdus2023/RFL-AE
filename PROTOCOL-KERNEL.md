@@ -1424,3 +1424,21 @@ RFL-AE-PROTOCOL-001
 ```
 
 Once that executable kernel is green, KSIR should attach to it as a producer of typed semantic artifacts, rather than defining its own lifecycle or authority rules.
+
+---
+
+**Done — see [PROTOCOL-IMPL.md](PROTOCOL-IMPL.md)** (§548–§575, source §§1–§28), which turns the
+protocol kernel into a concrete API and transition implementation: the repository skeleton,
+`rfl-types` with the `typed_id!` macro so `TaskId != AgentId` even though both are UUIDs, the
+`Digest` type and explicit `DigestAlgorithm`, snapshot identity where the immutable digest is
+authoritative rather than `source_version`, `MigrationState`, `Operation`, `TransitionCommand`
+and the `ExpectedState` optimistic-concurrency contract, explicit `Authorization` and
+`AuthorityClass`, capability kept separate from authorization, `ProtocolState` over `BTreeMap`
+for deterministic hashing, `MigrationRecord` with no confidence score, the `TransitionEngine`
+and its validation ordering, `TransitionPlan`, `ProtocolEvent` and `EventKind`, the deliberately
+boring reducer and the operations it must never perform, the in-memory `EventStore` and its CAS
+append, `replay` with `state_before`/`state_after` divergence detection, the first lifecycle,
+illegal-transition, authorization, epoch-invalidation and tamper tests, the `PROTO-GATE-001`
+checklist, the frozen crate dependency boundary, the resulting hierarchy in which agents become
+clients of the protocol, and the P0–P10 implementation progression. Same provenance convention
+as `VERIFICATION.md`.
