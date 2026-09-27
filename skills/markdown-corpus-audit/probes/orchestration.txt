@@ -1,0 +1,468 @@
+# Verbatim phrases from the ORCHESTRATION.md source (source §1-§55).
+# One phrase per line. Copied from the SOURCE, not from the output.
+# A phrase containing a newline cannot be represented here; those are
+# checked by the audit's structural rules instead.
+protocol executor
+not an intelligent project manager
+Its job is:
+It must never decide:
+"the Rust version is probably equivalent"
+That belongs to the contract/verification system.
+The scheduler observes protocol state; it does not replace the protocol.
+Define the scheduling problem explicitly
+The plan is itself versioned and snapshot-bound.
+The source tree dependency graph is insufficient
+We need a semantic migration graph:
+Represent these separately:
+have no direct source dependency
+But both manipulate:
+could invalidate the reconstructed concurrency contract
+The scheduler must consume both.
+A migration unit should not be scheduled merely because an agent is available.
+The scheduler does not directly modify:
+This preserves the earlier authority model.
+The protocol remains authoritative
+Agents need explicit identities and capabilities.
+Agent classes might include:
+This connects the scheduler to the RFL-QA philosophy.
+Do not encode:
+Instead encode demonstrable capabilities:
+A task declares:
+The scheduler computes:
+Capability alone is insufficient
+because authority is a separate dimension.
+All must hold.
+Concurrent agents require leases
+Read-only analysis can remain parallel.
+This avoids unnecessary serialization
+A worktree is itself a resource.
+No two writers can silently share a mutable worktree.
+Epochs solve stale-agent problems.
+Not every artifact becomes invalid
+Invalidation follows dependency edges.
+An agent might finish after its lease has expired
+Its result must not automatically enter canonical state.
+The stale artifact can still be retained as historical evidence.
+It simply cannot mutate current canonical state.
+for authoritative scheduling decisions.
+The scheduler should not rely on:
+the selected assignment should be deterministic.
+A deterministic key might be:
+But do not create a hidden correctness score.
+Scheduling priority is operational, not semantic.
+These are categories, not quality rankings.
+A scheduler must prevent:
+Use explicit quotas:
+Fairness is a resource-management property.
+It must not affect verification status.
+can proceed concurrently.
+The scheduler should exploit parallelism only where semantic dependencies permit it.
+A useful operational property:
+This is not a correctness ranking.
+which authorized task currently prevents other authorized tasks from becoming runnable?
+Avoid polling whenever possible
+Each event produces a deterministic state transition.
+Every assignment becomes an immutable record
+Why did agent X work on migration unit Y?
+without relying on logs
+and disappears
+The scheduler must not immediately assume:
+This avoids duplicate writes
+Every operation requiring external side effects receives an idempotency key.
+If an agent retries:
+the runtime can recognize:
+rather than duplicating the side effect.
+Do not promise exactly-once execution unless the infrastructure can actually provide it.
+The scheduler can safely provide:
+This is much more realistic
+but only one canonical transition.
+Duplicate execution is not automatically bad
+It can provide independent evidence.
+If they independently establish the same proposition:
+becomes possible.
+But the scheduler must not call duplication "independence" unless the evidence actually differs in producer/method/tool as required.
+Quarantine is a first-class scheduler state
+A quarantined unit is removed from normal scheduling.
+No agent can silently bypass it
+Possible triggers:
+Recovery must itself be governed.
+The system must not vote
+If agents disagree:
+Required output:
+The scheduler should enforce this topology where required by policy.
+Unknowns become scheduling dependencies
+rather than assigning an implementation agent anyway.
+This gives the scheduler a useful capability:
+Avoid encoding:
+The scheduler should operate on typed facts:
+This makes it replayable.
+This gives deterministic recovery
+Do not make scheduling semantics depend on wall-clock time where unnecessary.
+for authoritative ordering
+Wall-clock time remains diagnostic metadata.
+defines ordering even if physical timestamps are imperfect
+protocol history
+not a chat transcript
+On scheduler crash:
+Then reconcile external reality:
+against reconstructed state
+rather than silently choosing one side
+and investigate.
+automatically before evidence capture
+Resources are first-class
+A KCSAN run may require different resources from:
+The scheduler matches them.
+If a task cannot run because:
+This distinction should propagate to orchestration reports.
+Cancellation must be explicit
+Cancellation does not erase execution history.
+A scheduler that keeps running unrelated work can leave the system blocked.
+Therefore track:
+and permit controlled resource reservation
+Again, this is operational scheduling, not semantic ranking.
+The system should deliberately create separation:
+A hard scheduling rule:
+may still be insufficient for certain high-criticality obligations
+The policy can require:
+depending on the obligation
+Separate scheduling policy from correctness policy.
+in scheduling policy
+The architecture has expanded into a real autonomous engineering system:
+The orchestration layer is deliberately **outside** the semantic trust chain.
+That is important:
+"run this analysis next."
+"therefore the code is correct."
+No single agent controls the entire chain
+The core architecture is now substantially complete.
+The next step should **not** be another conceptual layer
+normative protocol specification and repository skeleton
+The first implementation target should be the
+protocol kernel plus event-sourced state machine
+not the LLM agents
+without allowing an agent to redefine the rules of its own execution
+scheduler ≠ state authority
+source graph ≠ semantic graph
+assign_any_agent()
+one authoritative writer per migration unit per epoch
+WAITING_CAPABILITY
+WAITING_EVIDENCE
+WAITING_RESOURCE
+RECONCILIATION_REQUIRED
+at-least-once dispatch + idempotent protocol transitions + deduplicated evidence
+assignment_id + operation_id + epoch
+initial state + event log = scheduler state
+quarantine → manual flag flip → continue
+Conflict C-77
+Conflict Investigation
+majority vote
+Ownership(X)
+cross-validation
+delete worktree
+blocking dependency
+same model family
+Agent A = "expert"
+RustImplementer
+RCU analysis capability
+VERIFICATION AUTHORITY
+migration_state = IMPLEMENTED
+implementation failed
+foo->lock
+struct foo_state
+AST analysis
+hardware slot unavailable
+logical sequence
+ReconciliationRecord
+EX-101
+EX-102
+test executes twice
+already executed
+same operation
+large subsystem
+→ consumes every worker
+→ small subsystem starves forever
+lease MU-42
+MU-A = WAITING_EVIDENCE
+CallbackLifecycleAnalysis
+"Does callback C outlive object X?"
+Rust design becomes schedulable
+Contract update
+lock L protects X
+lock L does not protect X
+"Rust design is probably safe"
+(priority_class,
+dependency_depth
+readiness_epoch
+migration_unit_id)
+select work
+acquire authority
+dispatch bounded work
+collect artifacts
+advance protocol state
+recover failures
+invalidate stale work
+schedule independent verification
+Agent A working
+Agent B verifying
+Agent C analyzing
+Contract changes
+A's design → STALE
+B's verification → STALE
+C's historical evidence → maybe VALID
+Epoch 17
+Epoch 18
+FAILED → RECOVERY
+CONFLICT → QUARANTINE
+STALE → REPLAN
+DEPENDENCIES_RESOLVED
+RESULT_AVAILABLE
+PROTOCOL_TRANSITION
+NEXT_STATE
+LEASED
+WHAT EXISTS?
+WHAT MUST REMAIN?
+HOW MAY IT WORK?
+HOW DO WE KNOW?
+WHAT ACTUALLY RAN?
+WHAT WAS OBSERVED?
+DO REQUIREMENTS HOLD?
+Next migration
+Semantic Reconstruction
+Linux Snapshot
+Orchestration Layer
+Release Authority
+Migration Certificate
+Independent Verifier
+Adversarial QA
+Release Review
+Contract Review
+Rust artifact
+Contract artifact
+MU-004821
+Writer lease
+Reader leases
+MU-001
+MU-004
+MU-007
+requires contract from MU-004
+shares ABI with MU-007
+requires KSIR facts from MU-002
+requires architecture analysis
+Agent A lease active
+process gone
+uncommitted changes
+worktrees
+processes
+receipts
+leases
+artifacts
+persistent state
++ event log
+replay
+reconstructed scheduler state
+MU-A → MU-B → MU-C
+contract verified
+design verified
+MU-D    MU-E    MU-F
+dependency graph
+topological analysis
+identify blockers
+dispatch work that unlocks downstream units
+Validate epoch
+Update dependency state
+Recalculate readiness
+Find eligible agents
+Acquire lease
+Create assignment
+Emit canonical event
+AGENT_LOST
+lease enters recovery grace period
+execution status inspected
+receipt/artifacts recovered
+resume / retry / quarantine
+Toolchain X
+Toolchain Y
+Evidence E1
+Evidence E2
+critical unknown
+stale epoch
+ABI mismatch
+unexplained race
+evidence corruption
+QUARANTINE
+Resolution Task
+Independent Analysis
+Conflict Resolution
+New Epoch
+Re-evaluate
+blocking unknown
+capability resolver
+analysis task
+unknown resolution
+dependent task becomes READY
+CANCEL_REQUESTED
+CANCELLED
+depends on MU-B
+waiting for scarce verifier
+required capabilities
+available demonstrated capabilities
+thread completion order
+network timing
+LLM preference
+random selection
+same orchestration state
+same agent inventory
+same leases
+same dependencies
+same policy
+analyze RCU
+inspect sparse output
+construct contract IR
+execute KCSAN
+verify ABI
+UNKNOWN
+REQUESTED
+DEMONSTRATED
+EXPIRED
+REVOKED
+CAnalyzer
+KernelHistorian
+ContractAnalyst
+RustDesigner
+RustImplementer
+ConcurrencyVerifier
+AdversarialVerifier
+ABIVerifier
+EvidenceAuditor
+Reviewer
+ContractConflict
+LifetimeUnknown
+ConcurrencyConflict
+AbiMismatch
+StaleArtifact
+EvidenceInvalid
+ToolFailure
+UnauthorizedMutation
+ScopeViolation
+MigrationState
+DependencyState
+CapabilityState
+EvidenceState
+AuthorizationState
+LeaseState
+different agent
+different tool
+different method
+different authority
+Event 101
+Event 102
+Event 103
+UnitDiscovered
+DependencyResolved
+AgentRegistered
+LeaseAcquired
+AssignmentCreated
+ImplementationCompleted
+VerificationRequested
+E001
+E010
+Scheduler says:
+Runtime says:
+Worktree contains:
+if agent says X:
+run Y
+NO EVIDENCE → NO VERIFIED CLAIM
+IMPLEMENTATION AUTHORITY ≠ VERIFICATION AUTHORITY
+EXECUTION RECEIPT ≠ SEMANTIC PROOF
+UNKNOWN ≠ FALSE
+UNKNOWN ≠ PROBABLY SAFE
+CONFLICT → INVESTIGATION, NOT VOTING
+STALE ARTIFACT → NO CURRENT CANONICAL AUTHORITY
+SCOPE MUST BE EXPLICIT
+SNAPSHOT MUST BE EXPLICIT
+CONFIGURATION/ARCHITECTURE VALIDITY MUST BE EXPLICIT
+IMMUTABLE EVIDENCE CANNOT BE OVERWRITTEN
+INVALIDATION PROPAGATES THROUGH DEPENDENCIES
+SCHEDULING DOES NOT CREATE SEMANTIC AUTHORITY
+RELEASE IS DERIVED FROM GATES, NOT AGENT OPINION
+CERTIFICATE CLAIMS ARE BOUNDED BY THEIR DECLARED SCOPE
+RFL-AE-I001
+RFL-AE-I015
+RFL-AE v0.1
+PROTOCOL.md
+ORCHESTRATION.md
+EVIDENCE.md
+rfl-orchestration
+rfl-orchestration-gates
+rfl-event-log
+rfl-quarantine
+rfl-recovery
+rfl-leases
+rfl-scheduler
+rfl-orchestration-types
+determinism.rs
+isolation.rs
+orchestration/
+schemas/
+crates/
+tests/
+Propose reasoning, artifacts, hypotheses
+Reconcile observations into semantic facts
+Establish what actually executed
+Preserve provenance/integrity
+Allocate authorized work
+Authorize release
+Review release candidate
+Modify bounded worktree
+Propose realizations
+Formalize preservation requirements
+Produce observations
+Evaluate propositions
+Evaluate requirements
+LLM/Agent
+Semantic analyzer
+KSIR reconciler
+Contract compiler
+Rust designer
+Implementation agent
+Execution runtime
+Evidence ledger
+Verification engine
+Gate engine
+Scheduler
+Review authority
+Release authority
+**RFL-AE Core Invariants**
+Every assignment references an authorized migration unit.
+Every writer has an exclusive write lease.
+Read-only agents may execute concurrently where permitted.
+Assignments are epoch-bound.
+Stale results cannot mutate current canonical state.
+Dependency state is explicit.
+Critical unknowns can generate analysis tasks.
+Conflicts create quarantine rather than consensus.
+Agent loss triggers recovery.
+External state is reconciled after restart.
+Scheduling decisions are deterministic under identical state.
+Every assignment is auditable.
+Cancellation preserves history.
+Retries are idempotent.
+Resource exhaustion is distinguishable from semantic failure.
+Implementation authority cannot be silently promoted to verification authority.
+Release authority cannot be acquired through scheduling.
+ORCH-001
+ORCH-002
+ORCH-003
+ORCH-004
+ORCH-005
+ORCH-006
+ORCH-007
+ORCH-008
+ORCH-009
+ORCH-010
+ORCH-011
+ORCH-012
+ORCH-013
+ORCH-014
+ORCH-015
+ORCH-016
+ORCH-017

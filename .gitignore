@@ -1,0 +1,10 @@
+# Python bytecode from the skills' scripts
+__pycache__/
+*.py[cod]
+
+# Local virtualenv for the `markdown` package used by the audit skills
+.venv/
+venv/
+
+# Scratch fixtures created by run_all.sh negative tests
+/negtest/

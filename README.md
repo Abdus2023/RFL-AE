@@ -133,6 +133,28 @@ non-self-validating release gate.
   model, and the frozen **RFL-AE Core Invariants** `RFL-AE-I001`–`I015`. Same provenance
   convention as `VERIFICATION.md`.
 
+## Tooling
+
+[`skills/`](skills/README.md) contains the reusable toolchain this corpus was
+produced with, packaged as skills. Six of them: `ascii-diagram-forge` (diagrams
+generated from column arithmetic, never hand-typed), `corpus-provenance-numbering`
+(contiguous corpus numbering with lossless source provenance),
+`placeholder-splice` (substitute generated diagrams and prove each landed inside
+a fence), `markdown-corpus-audit` (per-file and whole-corpus checks for the
+defects that render silently), `spec-turn-closeout` (the end-of-document ritual),
+and `skill-creator` (the meta-skill used to author the others).
+
+Run everything:
+
+```bash
+./skills/run_all.sh                    # or: ./skills/run_all.sh .venv/bin/python
+```
+
+It runs the geometry self-test, validates every skill, audits the corpus and the
+newest document, verifies the last close-out, and then runs three negative tests
+that must each fail. It exits non-zero if any stage fails, and it refuses to
+report a skipped check as a pass.
+
 ## Status
 
 `v0.0` — documentation only. Fourteen specification documents covering §1–§517 (§108 does not
