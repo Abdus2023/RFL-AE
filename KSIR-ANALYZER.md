@@ -911,3 +911,25 @@ full evidence → verification → gate → certificate
 ```
 
 The key change from the previous stage is that **we now have a concrete implementation boundary**. The next useful work is writing the actual crate contents and fixture implementation, then running the first deterministic KSIR test suite.
+
+---
+
+**Done — see [EXECUTABLE-KERNEL.md](EXECUTABLE-KERNEL.md)** (§702–§717, source *Current state* plus
+§§1–§14 plus the unnumbered *Immediate implementation sequence*), which stops adding conceptual
+layers and starts making the invariants executable: a `Current state` table that still records the
+protocol as **PROVISIONAL** and the transition engine, evidence ledger and gate engine as **NOT
+IMPLEMENTED**; the governing principle that **RFL-AE must be able to reject an invalid agent
+action without asking an LLM whether the action is valid**; a `DOMAIN-TYPES.md` registry that
+eliminates the `SnapshotId` / `KernelSnapshotId` ambiguity; the three-way gate algebra where
+`Gate ≠ GateStatus ≠ GateResult`; a canonical `Epoch` with `REJECT` rather than `WARNING` on
+mismatch; `rfl-types` as a deliberately boring crate with **domain types and invariants only**;
+`rfl-transition` where agents **request** transitions and only the engine produces authoritative
+state; a transition relation that is never `"probably okay"`, `"LLM believes valid"` or
+`"majority of agents approved"`; the task state machine that makes `FAILED → VERIFIED` and
+`EXECUTING → CERTIFIED` structurally impossible; seven adversarial negative tests; an event
+ledger whose `previous_state + operation + resulting_state` makes replay divergence detectable;
+evidence bound to objects rather than `"cargo test passed"`; the separation of
+`TechnicalCertification` from `UpstreamAcceptanceState`; the Linux subsystem manifest; the
+inverted agent hierarchy; a one-engine-first milestone with **0 autonomous mutation agents**;
+eleven implementation phases; and a release gate that RFL-AE v0.1 cannot be called complete
+without. Same provenance convention as `VERIFICATION.md`.

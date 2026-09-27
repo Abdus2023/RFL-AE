@@ -247,6 +247,25 @@ non-self-validating release gate.
   first `KSIR-GATE-001` execution, where **BLOCKED is the correct result**; Contract IR with
   `C005 = BLOCKED`; and the two properties that become executable tests. Same provenance
   convention as `VERIFICATION.md`.
+- **[EXECUTABLE-KERNEL.md](EXECUTABLE-KERNEL.md)** (§702–§717, source *Current state* plus
+  §§1–§14 plus the unnumbered *Immediate implementation sequence*) — stopping the addition of
+  conceptual layers and making the invariants executable. A `Current state` table that still
+  records the protocol as **PROVISIONAL** and the transition engine, evidence ledger and gate
+  engine as **NOT IMPLEMENTED**; the governing principle that **RFL-AE must be able to reject an
+  invalid agent action without asking an LLM whether the action is valid**; a `DOMAIN-TYPES.md`
+  registry eliminating the `SnapshotId` / `KernelSnapshotId` ambiguity; the three-way gate
+  algebra where `Gate ≠ GateStatus ≠ GateResult`; a canonical `Epoch` answered with `REJECT`
+  rather than `WARNING`; `rfl-types` as a deliberately boring crate with **domain types and
+  invariants only**; `rfl-transition`, where agents **request** transitions and only the engine
+  produces authoritative state; a transition relation that is never `"probably okay"`,
+  `"LLM believes valid"` or `"majority of agents approved"`; a task state machine that makes
+  `FAILED → VERIFIED` and `EXECUTING → CERTIFIED` structurally impossible; seven adversarial
+  negative tests; an event ledger whose `previous_state + operation + resulting_state` makes
+  replay divergence detectable; evidence bound to objects rather than `"cargo test passed"`;
+  `TechnicalCertification` kept separate from `UpstreamAcceptanceState`; the Linux subsystem
+  manifest; the inverted agent hierarchy; a one-engine-first milestone with **0 autonomous
+  mutation agents**; eleven implementation phases; and a release gate without which RFL-AE v0.1
+  cannot be called complete. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -274,7 +293,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§701 numbering. Every checkable
+a specification, so it sits outside the §1–§717 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -284,6 +303,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-one specification documents covering §1–§701 (§108 does not
+`v0.0` — documentation only. Twenty-two specification documents covering §1–§717 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

@@ -1,0 +1,429 @@
+# Verbatim phrases from the EXECUTABLE-KERNEL source (Current state, §1-§14,
+# and the closing Immediate implementation sequence section).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The repository has crossed an important boundary: the architecture is sufficiently mature to stop adding conceptual layers and start making its invariants executable.
+The external Linux/Rust environment reinforces this direction.
+Rust in Linux is `no_std`, uses kernel-specific abstractions over C bindings, and currently still depends on some unstable Rust features; subsystem maintainers remain the relevant authority for accepting Rust changes.
+Architecture
+**PARTIALLY_VERIFIED**
+Strong conceptual separation
+Corpus numbering/provenance
+**VERIFIED**
+Structural audit passed
+Specification
+Several undefined/cross-document types remain
+Protocol
+**PROVISIONAL**
+Not executable
+Transition engine
+**NOT IMPLEMENTED**
+No authoritative state machine
+Evidence ledger
+No replayable evidence authority
+Gate engine
+Gates are specified, not enforced
+Agent execution
+**NOT AUTHORIZED**
+Correct decision at this stage
+Linux integration
+No machine-readable subsystem inventory
+CI authority
+**OPEN**
+Repository has no authoritative CI execution layer
+The critical principle now becomes:
+**RFL-AE must be able to reject an invalid agent action without asking an LLM whether the action is valid.**
+The first implementation artifact should be a canonical type registry.
+I would add:
+DOMAIN-TYPES.md
+with a single authoritative definition for every cross-document primitive.
+SnapshotId
+KernelSnapshotId
+TaskId
+AgentId
+ArtifactId
+EvidenceId
+ContractId
+GateId
+AuthorizationId
+EventId
+Digest
+GitObjectId
+ArchitectureId
+SubsystemId
+ToolchainFingerprint
+EnvironmentFingerprint
+GateStatus
+VerificationStatus
+EvidenceStatus
+ExecutionStatus
+ProcessOutcome
+The existing ambiguity around:
+must be resolved before implementation.
+Do not permit two identifiers to coexist merely because they sound semantically similar.
+A good rule:
+identifies a Linux source snapshot
+SHOULD NOT exist unless it means something
+materially different from KernelSnapshotId
+If they are equivalent, eliminate one.
+The `GateStatus` problem is more important than it initially appears.
+Do not simply add:
+enum GateStatus {
+Pass,
+Fail,
+Blocked,
+NotApplicable,
+Invalidated,
+Instead distinguish three concepts.
+What the gate requires.
+pub struct Gate {
+pub id: GateId,
+pub scope: Scope,
+pub predicate: GatePredicate,
+What happened when the predicate was evaluated.
+pub enum GateStatus {
+The immutable evidence-bearing result.
+pub struct GateResult {
+pub gate_id: GateId,
+pub status: GateStatus,
+pub evidence: Vec<EvidenceId>,
+pub evaluated_against: SnapshotId,
+This prevents an important semantic collapse:
+Gate
+≠ GateStatus
+≠ GateResult
+That distinction should become normative.
+The existing snapshot/epoch idea should become an actual protocol primitive.
+pub struct Epoch {
+pub snapshot: KernelSnapshotId,
+pub specification_digest: Digest,
+pub protocol_version: String,
+pub generation: u64,
+Every authorization, artifact, evidence record and task execution should be bound to an epoch.
+Conceptually:
+EPOCH
+TASK
+AUTHORIZATION
+ARTIFACT
+EVIDENCE
+GATES
+CERTIFICATE
+This gives RFL-AE a strong stale-state invariant:
+artifact.epoch == authorization.epoch
+artifact.epoch == task.epoch
+evidence.epoch == artifact.epoch
+gate.epoch == evidence.epoch
+Otherwise:
+REJECT
+not:
+WARNING
+The first actual Rust crate should therefore be deliberately boring.
+crates/
+rfl-types/
+Cargo.toml
+src/
+lib.rs
+ids.rs
+snapshot.rs
+task.rs
+authorization.rs
+artifact.rs
+evidence.rs
+contract.rs
+verification.rs
+gate.rs
+errors.rs
+No LLM dependency.
+No async runtime.
+No network.
+No filesystem authority.
+No agent framework.
+No plugin system.
+The crate should contain **domain types and invariants only**.
+The second crate becomes the actual protocol authority.
+rfl-transition/
+machine.rs
+transition.rs
+preconditions.rs
+scope.rs
+The important design constraint:
+Agents do not transition state.
+They **request** transitions.
+Agent
+TransitionRequest
+Protocol Engine
++-- validate epoch
++-- validate task
++-- validate authority
++-- validate capability
++-- validate scope
++-- validate preconditions
++-- validate artifact
+Transition
+Only the transition engine produces the new authoritative state.
+The protocol should expose something conceptually equivalent to:
+δ : (State, Request) → Result
+where:
+Result =
+Accepted(NewState, Event)
+| Rejected(Reason)
+Never:
+Result = "probably okay"
+Result = "LLM believes valid"
+Result = "majority of agents approved"
+This aligns with the architecture's existing rejection of consensus as semantic truth.
+Start with the smallest useful state machine.
+CREATED
+ADMITTED
+AUTHORIZED
+EXECUTING
+SUCCEEDED  FAILED
+VERIFIED
+GATED
+CERTIFIED
+But importantly:
+FAILED ──X──> VERIFIED
+AUTHORIZED ──X──> CERTIFIED
+EXECUTING ──X──> CERTIFIED
+The protocol should make those impossible rather than relying on agent discipline.
+This is where RFL-AE becomes genuinely interesting.
+The first conformance suite should deliberately attack the protocol.
+Test A — stale authorization
+authorize(epoch=10)
+snapshot changes
+execute(epoch=10)
+Expected:
+REJECT(STALE_EPOCH)
+Test B — cross-snapshot artifact
+artifact.snapshot = A
+authorization.snapshot = B
+REJECT(SNAPSHOT_MISMATCH)
+Test C — scope escape
+authorized:
+drivers/net/foo.c
+requested:
+kernel/sched/core.c
+REJECT(SCOPE_VIOLATION)
+Test D — self-verification
+agent produces artifact
+same authority declares:
+artifact verified
+REJECT(SELF_VERIFICATION)
+Test E — forged evidence
+Evidence {
+claim: PASS
+artifact: nonexistent
+REJECT(EVIDENCE_NOT_BOUND)
+Test F — duplicate operation
+execute(operation_id=42)
+first
+-> ACCEPTED
+second
+-> REJECT(DUPLICATE_OPERATION)
+Test G — replay divergence
+events[0..N]
+replay()
+state_A
+original execution
+state_B
+Invariant:
+state_A == state_B
+If not:
+REPLAY_FAILURE
+This is the next architectural pivot.
+rfl-event-ledger
+An event should be immutable:
+pub struct Event {
+pub id: EventId,
+pub epoch: Epoch,
+pub sequence: u64,
+pub actor: AgentId,
+pub operation: Operation,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+pub timestamp: Timestamp,
+The important property is not the timestamp.
+It is:
+previous_state_hash
++ operation
++ resulting_state_hash
+This makes replay divergence detectable.
+The evidence model should reject:
+"cargo test passed"
+as sufficient evidence.
+Instead:
+subject
+operation
+command
+environment
+toolchain
+input digest
+output digest
+exit status
+timestamp
+For example:
+EvidenceRecord {
+subject: ArtifactId,
+source: ExecutionId,
+environment: EnvironmentFingerprint,
+toolchain: ToolchainFingerprint,
+input_digest: Digest,
+output_digest: Digest,
+outcome: PASS,
+This matters particularly for kernel work because the Rust toolchain itself is a meaningful part of the build environment.
+Current kernel documentation explicitly describes minimum Rust requirements and `rustc`-dependent build configuration.
+This is a major addition I recommend.
+RFL-AE currently has something close to:
+RELEASE_ELIGIBLE
+But Linux has another authority dimension.
+A technically verified Rust subsystem does **not** automatically mean:
+acceptable upstream patch
+Current Rust-for-Linux policy explicitly places Rust integration within normal subsystem maintainer authority, and Rust changes generally involve both the relevant subsystem maintainers/reviewers and the Rust subsystem.
+Therefore introduce:
+TechnicalCertification
+and separately:
+UpstreamAcceptanceState
+UNVERIFIED
+INVALIDATED
+NOT_SUBMITTED
+UNDER_REVIEW
+REVIEWED
+ACCEPTED
+REJECTED
+SUPERSEDED
+Do **not** allow:
+VERIFIED
+= UPSTREAM_ACCEPTED
+They are different propositions.
+Once the protocol kernel exists, the Linux-specific layer should become machine-readable.
+linux/
+subsystems/
+scheduler.yaml
+memory.yaml
+rcu.yaml
+workqueue.yaml
+vfs.yaml
+block.yaml
+networking.yaml
+architectures/
+toolchains/
+configurations/
+maintainers/
+A subsystem record could look like:
+id: scheduler
+family: core
+source_paths:
+- kernel/sched/
+semantic_domains:
+- tasks
+- scheduling
+- locking
+- cpu-topology
+migration_class:
+- semantic_reconstruction
+- unsafe_boundary
+- concurrency_sensitive
+verification_backends:
+- compile
+- kunit
+- lockdep
+- kasan
+- kcsan
+- runtime
+- differential
+maintainer_authority:
+required: true
+This is where the architecture stops being a generic agent framework and becomes a **Linux reconstruction system**.
+The agent hierarchy should therefore be:
+HUMAN / MAINTAINER
+POLICY AUTHORITY
+RFL-AE PROTOCOL
+RECONSTRUCTION
+DESIGN
+VERIFICATION
+AGENTS
+ARTIFACT STORE
+EVIDENCE LEDGER
+GATE ENGINE
+TECHNICAL CERTIFICATE
+UPSTREAM REVIEW STATE
+The critical inversion is:
+BAD:
+LLM
+code
+tests
+"verified"
+GOOD:
+proposal
+RFL-AE
+authorized operation
+artifact
+independent execution
+gate engine
+certificate
+For the first executable milestone, I would intentionally use:
+1 protocol engine
+1 event ledger
+1 evidence engine
+1 gate engine
+0 autonomous mutation agents
+Then prove:
+determinism
+replay
+authorization
+scope
+epoch isolation
+evidence binding
+gate semantics
+Only then introduce:
+Agent-1: C semantic reconstruction
+Agent-2: Rust design
+Agent-3: implementation
+Agent-4: verification
+Agent-5: adversarial review
+The agents become **clients of the protocol**, not the protocol itself.
+PHASE 0  ─ Freeze
+authority vocabulary
+PHASE 1  ─ rfl-types
+canonical Rust domain model
+PHASE 2  ─ rfl-transition
+deterministic state machine
+PHASE 3  ─ rfl-event-ledger
+append-only events
+deterministic replay
+PHASE 4  ─ rfl-evidence
+execution/evidence binding
+PHASE 5  ─ rfl-gates
+PASS/FAIL/BLOCKED/INVALIDATED
+PHASE 6  ─ conformance
+adversarial negative suite
+PHASE 7  ─ CI
+authoritative execution
+PHASE 8  ─ Linux manifests
+subsystem/config/arch/toolchain model
+PHASE 9  ─ agents
+proposal-only first
+PHASE 10 ─ controlled execution
+capability-granted mutation
+PHASE 11 ─ kernel reconstruction
+subsystem by subsystem
+I would make **RFL-AE v0.1 Protocol Kernel** impossible to call complete unless all of these hold:
+[ ] all referenced domain types defined
+[ ] no undefined GateStatus
+[ ] no undefined SnapshotId
+[ ] transition relation executable
+[ ] illegal transitions rejected
+[ ] authorization is epoch-bound
+[ ] artifacts are epoch-bound
+[ ] scope enforcement executable
+[ ] duplicate operations rejected
+[ ] replay deterministic
+[ ] evidence bound to execution
+[ ] self-verification rejected
+[ ] gate state machine executable
+[ ] negative tests exist
+[ ] CI executes the authoritative suite
+[ ] execution evidence is persisted
+[ ] release certificate derives from evidence
+**Only after that should RFL-AE be trusted to supervise an AI system working on Linux kernel C→Rust reconstruction.**
+The next concrete step is therefore to write the **`rfl-types` normative type system + state-transition algebra**, rather than adding more agent roles.
