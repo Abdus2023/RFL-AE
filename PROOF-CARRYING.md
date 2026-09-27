@@ -1335,3 +1335,21 @@ rfl-types
 Before any Linux subsystem is migrated.
 
 That vertical slice should become the **RFL-AE protocol-kernel reference implementation**. Once it passes, the same machinery can be applied to the first real kernel migration unit, and the AI agents become replaceable workers operating under a deterministic authority layer rather than being part of the authority itself.
+
+---
+
+**Done — see [RFL-TYPES.md](RFL-TYPES.md)** (§804–§822, source §§1–§18 plus the unnumbered
+*The next concrete layer*), which makes the protocol kernel concrete starting with
+**`rfl-types`**, the crate whose one job is to define the canonical data model and invariants
+shared by every RFL-AE component: newtype identifiers so the compiler becomes part of the
+protocol boundary; an algorithm-bearing `Digest`; `Epoch` as a first-class object that state,
+evidence and authorization cannot silently cross; a status algebra keeping `GateStatus`,
+`VerificationStatus` and `EvidenceStatus` apart, with **`FAIL ≠ BLOCKED`**; a closed
+`OperationKind`; `Capability` distinct from `Authorization`; `OperationRequest` instead of
+`execute(command: String)`; `MigrationUnit` with source identity; a deterministic transition
+engine with no third result; retries as new `TaskAttempt`s rather than state rewinds; a
+hash-chained event ledger where **replay is a theorem of the implementation**; the evidence
+boundary between an agent saying *"I verified it"* and execution infrastructure; the
+self-verification attack as a transition invariant; the **18 adversarial conformance tests**,
+the last of which must accept; and `rfl-transition` as the next concrete layer. Same provenance
+convention as `VERIFICATION.md`.

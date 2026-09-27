@@ -1,0 +1,361 @@
+# Verbatim phrases from the RFL-TYPES source (§1-§18 + closing section).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The next step is to make the protocol kernel concrete. I would start with **`rfl-types`**, because every other crate depends on its identity, epoch, status, and digest semantics.
+`rfl-types`: normative kernel
+The crate should have one job:
+Define the canonical data model and invariants shared by every RFL-AE component.
+It should **not** execute commands, inspect Git, call an LLM, read the filesystem, or decide policy.
+crates/
+├── rfl-types/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── ids.rs
+│       ├── digest.rs
+│       ├── epoch.rs
+│       ├── status.rs
+│       ├── task.rs
+│       ├── authorization.rs
+│       ├── operation.rs
+│       ├── artifact.rs
+│       ├── evidence.rs
+│       ├── contract.rs
+│       ├── gate.rs
+│       └── error.rs
+Dependency direction:
+rfl-transition  ledger  evidence
+gates
+No reverse dependency.
+Canonical identifiers
+Do not use naked `String` or `Uuid` throughout the protocol.
+The type system should prevent accidental substitution.
+pub struct TaskId(pub Uuid);
+pub struct AgentId(pub Uuid);
+pub struct ArtifactId(pub Uuid);
+pub struct EvidenceId(pub Uuid);
+pub struct ContractId(pub Uuid);
+pub struct GateId(pub Uuid);
+pub struct AuthorizationId(pub Uuid);
+pub struct EventId(pub Uuid);
+pub struct RequestId(pub Uuid);
+pub struct MigrationUnitId(pub Uuid);
+pub struct SemanticModelId(pub Uuid);
+pub struct RustDesignId(pub Uuid);
+pub struct DesignElementId(pub Uuid);
+pub struct ObligationId(pub Uuid);
+pub struct GenerationId(pub Uuid);
+This is deliberately boring.
+That is desirable.
+A function accepting:
+fn verify(task: TaskId, artifact: ArtifactId)
+cannot accidentally receive an `EvidenceId`.
+The compiler becomes part of the protocol boundary.
+Digest must be algorithm-bearing
+Do not define:
+type Digest = String;
+pub enum DigestAlgorithm {
+Sha256,
+pub struct Digest {
+pub algorithm: DigestAlgorithm,
+pub bytes: [u8; 32],
+Later algorithms can be added deliberately.
+The canonical textual form can be:
+sha256:<64 lowercase hexadecimal characters>
+sha256:0123456789abcdef...
+The important invariant is:
+Digest equality
+= same algorithm AND same digest bytes
+Never compare presentation strings as the semantic identity.
+Epoch becomes a first-class object
+pub struct Epoch {
+pub kernel: KernelSnapshotId,
+pub specification: Digest,
+pub protocol: Digest,
+pub generation: u64,
+pub fn same_epoch(a: &Epoch, b: &Epoch) -> bool {
+a == b
+But the real rule belongs in the protocol:
+Epoch(a) ≠ Epoch(b)
+state/evidence/authorization cannot silently cross the boundary
+This protects against one of the most dangerous migration failures:
+Analyze C at snapshot A
+C changes
+Generate Rust against snapshot B
+reuse analysis from A
+false certification
+RFL-AE should reject this rather than attempt to reason around it.
+Status algebra
+Several concepts currently risk being collapsed into one enum.
+Do not do that.
+### Gate status
+pub enum GateStatus {
+Pass,
+Fail,
+Blocked,
+NotApplicable,
+Invalidated,
+Semantics:
+Predicate evaluated and satisfied
+Predicate evaluated and failed
+Cannot validly evaluate because required authority/evidence is absent
+Gate is outside declared scope
+Previously valid result no longer applies
+The critical distinction:
+FAIL ≠ BLOCKED
+A failed test and an unavailable test are different facts.
+Verification status
+Separate from gates:
+pub enum VerificationStatus {
+Verified,
+PartiallyVerified,
+Failed,
+And evidence status:
+pub enum EvidenceStatus {
+Observed,
+Derived,
+Hypothesis,
+These represent different epistemic layers.
+Evidence:
+Observed
+Verification:
+Verified
+Gate:
+Pass
+is coherent.
+Hypothesis
+should be structurally impossible unless the verification record explicitly establishes what was verified independently of that hypothesis.
+Operations
+Use a closed enum initially:
+pub enum OperationKind {
+Observe,
+Extract,
+Analyze,
+Propose,
+Generate,
+Modify,
+Execute,
+Verify,
+Review,
+This matters because:
+"run arbitrary shell command"
+must not become the fundamental authorization primitive.
++ typed Target
++ Scope
++ Authorization
++ Epoch
+defines the permitted operation.
+Capability and authorization remain distinct.
+pub struct Capability {
+pub id: CapabilityId,
+pub operation: OperationKind,
+pub scope: Scope,
+pub struct Authorization {
+pub id: AuthorizationId,
+pub epoch: Epoch,
+pub actor: AgentId,
+pub task: TaskId,
+pub capability: CapabilityId,
+pub expires_at: Timestamp,
+The distinction is:
+= what this actor/system is capable of doing
+= this actor may perform this operation for this task in this scope during this epoch
+This prevents the classic confused-deputy problem.
+`OperationRequest`
+pub struct OperationRequest {
+pub request_id: RequestId,
+pub operation: OperationKind,
+pub target: Target,
+pub authorization: AuthorizationId,
+The transition engine receives exactly this kind of request.
+execute(command: String)
+Now the protocol gets its actual semantic object.
+pub struct MigrationUnit {
+pub id: MigrationUnitId,
+pub source: SourceSet,
+pub ksir: SemanticModelId,
+pub contracts: Vec<ContractId>,
+pub design: RustDesignId,
+pub artifact: Option<ArtifactId>,
+But `SourceSet` must not merely be:
+Vec<String>
+It needs source identity.
+SourceSet
+├── repository identity
+├── commit/object identity
+├── source paths
+├── source regions
+└── configuration scope
+MigrationUnit
+├── source identity
+├── semantic model
+├── contracts
+├── Rust design
+└── artifact
+The artifact is therefore the **last** thing attached to the unit, not its definition.
+Transition engine
+Once `rfl-types` is frozen, `rfl-transition` can be deterministic.
+pub enum TaskState {
+Created,
+Admitted,
+Authorized,
+Executing,
+Succeeded,
+Gated,
+Certified,
+The transition function:
+pub fn transition(
+state: &State,
+request: &OperationRequest,
+) -> TransitionResult
+pub enum TransitionResult {
+Accepted {
+event: EventId,
+state: StateDigest,
+Rejected {
+reason: RejectionReason,
+There is deliberately no:
+Maybe
+Probably
+Best effort
+LLM says okay
+Confidence = 0.97
+inside the authoritative transition relation.
+Retry semantics
+A subtle but important correction:
+Do **not** make this legal:
+as an implicit state rewind.
+├── Attempt #1
+│      └── Failed
+├── Attempt #2
+│      └── Executing
+└── Attempt #3
+└── Succeeded
+pub struct TaskAttempt {
+pub id: AttemptId,
+pub sequence: u64,
+pub state: AttemptState,
+A retry is a **new attempt**, not a historical mutation.
+That becomes extremely important for reproducibility.
+Event ledger
+`rfl-ledger` should make state transitions auditable.
+pub struct Event {
+pub id: EventId,
+pub request: RequestId,
+pub previous_event: Option<EventId>,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+pub event_digest: Digest,
+The event digest should commit to canonical event content.
+│ hash(E0)
+│ hash(E1 + previous_event)
+Tampering becomes detectable.
+Replay is a theorem of the implementation
+The ledger must support:
+pub fn replay(events: &[Event]) -> Result<State, ReplayError>;
+and the central invariant becomes:
+replay(authoritative_ledger)
+== authoritative_state
+This is stronger than:
+"we logged what happened"
+because the ledger becomes an executable historical representation.
+The conformance test should deliberately mutate:
+E17.resulting_state
+E17.event_digest
+E18.previous_event
+E18.sequence
+and require replay rejection.
+Evidence boundary
+Execution produces evidence.
+The agent does not.
+pub struct EvidenceRecord {
+pub id: EvidenceId,
+pub subject: ArtifactId,
+pub executor: ExecutorId,
+pub command_digest: Digest,
+pub input_digest: Digest,
+pub output_digest: Digest,
+pub environment: EnvironmentFingerprint,
+pub toolchain: ToolchainFingerprint,
+pub outcome: EvidenceOutcome,
+This creates a crucial distinction:
+Agent:
+"I verified it."
+Execution infrastructure:
+"This exact artifact was built/tested
+under this exact environment,
+producing this exact result."
+Only the latter is execution evidence.
+Self-verification attack
+One of the first adversarial rules should be:
+Generator ≠ sole verifier
+Agent A
+generates Rust
+claims verification
+The protocol should reject it if the verification policy requires independence.
+Formally:
+if verifier == generator
+&& contract.requires_independent_verification {
+reject(SelfVerification);
+This should not be a social convention.
+It should be a transition invariant.
+The 18 conformance tests
+The first executable milestone should contain exactly these adversarial cases:
+stale epoch
+snapshot mismatch
+specification mismatch
+expired authorization
+revoked authorization
+missing capability
+scope escape
+invalid state transition
+duplicate request
+forged artifact
+unbound evidence
+self-verification
+event tampering
+replay divergence
+required gate failure
+required gate blocked
+invalidated dependency
+complete valid execution
+The last test is important.
+An adversarial system that only knows how to reject is not useful.
+What this gives us
+After these crates:
+rfl-types
+rfl-transition
+rfl-ledger
+rfl-evidence
+rfl-gates
+we have the first genuinely executable RFL-AE kernel:
+UNTRUSTED AGENTS
+│ typed request
+│   RFL-AE KERNEL   │
+│ Types             │
+│ Epoch             │
+│ Authorization     │
+│ Transition        │
+│ Ledger            │
+│ Evidence          │
+│ Gates             │
+EXECUTION SYSTEM
+EVIDENCE
+CERTIFICATE
+And, critically:
+LLM output
+≠ protocol state
+LLM confidence
+≠ verification
+test output
+≠ contract satisfaction
+contract satisfaction
+≠ upstream acceptance
+That separation is the foundation on which the later **KSIR → Contracts → Rust Design IR → Rust generation** pipeline can safely sit.
+The next concrete layer
+After freezing `rfl-types`, I would implement **`rfl-transition` first**, including the transition matrix:
+Current State × Operation × Preconditions
+Accepted / Rejected
+State + Event
+and make the **18 attacks executable as conformance tests before adding any LLM/semantic agent code**.
+That changes RFL-AE from a specification describing a trustworthy agent architecture into a small, testable **authority kernel** that agents must obey.
