@@ -1760,3 +1760,17 @@ UNKNOWN + CONFLICT extraction
 
 That is where we define the actual **skills and tools the AI agents need to acquire kernel
 semantics**, rather than merely giving them access to source code.
+
+---
+
+**Done — see [RECONSTRUCTION.md](RECONSTRUCTION.md)** (§251–§291), which specifies the
+compiler-grade evidence pipeline that produces those semantics: the analysis backend
+architecture and its authority table, `AnalysisObservation` and backend identity, build
+variants and configuration domains, compiler command fidelity, Linux-specific semantic
+hazards, the structural pipeline, call graphs and indirect-call reachability, effect and
+execution-context propagation, the context lattice, lock and lockset analysis, ownership,
+refcount, RCU, callback, temporal-ownership, alias, memory-region, ABI and architecture
+reconstruction, the reconciliation engine and its states, conflict as data, the no-consensus
+rule, evidence reconciliation, semantic vs verified claims, the semantic dependency graph,
+migration dependency extraction, agent decomposition, the worker contract, the critical
+unknown detector, the crate structure, and acceptance criteria SR-001–SR-012.
