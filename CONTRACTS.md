@@ -1399,3 +1399,17 @@ This is where the architecture becomes capable of handling the hardest question 
 project:
 
 > ### **When should the system preserve a C mechanism, when should it replace that mechanism with a Rust-native abstraction, and how can it prove that the replacement preserves the kernel contract?**
+
+---
+
+**Done — see [DESIGN-IR.md](DESIGN-IR.md)** (§321–§356), which specifies that decision
+boundary: the `RustDesign` root and its `source_contract`, design vs implementation,
+representation mapping, the Rust type taxonomy and semantic roles, ownership mapping and
+transfer events, lifetime design, self-referential structures and pinning obligations,
+synchronization mapping, lock encapsulation and ordering, atomic and RCU design mapping,
+context-preserving API design, contract enforcement strength, FFI boundaries and trust
+classification, ABI-preserving vs ABI-breaking migration, architecture mapping, error mapping
+and error contracts, initialization design and typestate candidates, callback design and
+reentrancy, design rejection, design search and selection, the design gate, the Rust
+implementation boundary, generated safety obligations, the design-to-verification chain, the
+complete migration compiler, and the three IRs.

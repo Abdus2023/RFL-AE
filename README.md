@@ -70,9 +70,20 @@ non-self-validating release gate.
   `G-CONTRACT-001`…`008` gate, the contract compiler, the agent boundary, the contract review
   agent, the counterexample engine, the migration unit contract package, the end-to-end proof
   chain, and the Rust Design IR transition.
+- **[DESIGN-IR.md](DESIGN-IR.md)** (§321–§356) — the Rust Design IR: the `RustDesign` root and
+  its `source_contract`, design vs implementation, representation mapping, the Rust type
+  taxonomy and semantic roles, ownership mapping and transfer events, lifetime design,
+  self-referential structures and pinning obligations, synchronization mapping, lock
+  encapsulation and ordering, atomic and RCU design mapping, context-preserving API design,
+  contract enforcement strength, FFI boundaries and trust classification, ABI-preserving vs
+  ABI-breaking migration, architecture mapping, error mapping and error contracts,
+  initialization design and typestate candidates, callback design and reentrancy, design
+  rejection, search and selection, the design gate, the Rust implementation boundary, generated
+  safety obligations, the design-to-verification chain, the complete migration compiler, and the
+  three IRs.
 
 ## Status
 
-`v0.0` — documentation only. Nine specification documents covering §1–§320 (§108 does not
+`v0.0` — documentation only. Ten specification documents covering §1–§356 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
