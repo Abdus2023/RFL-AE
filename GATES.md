@@ -1441,3 +1441,20 @@ Immutable Evidence Ledger
 That is where we should go next, because otherwise the entire `NO EVIDENCE → NO VERIFIED CLAIM`
 architecture still has an unformalized trust boundary between **“the system says it ran”** and
 **“we can prove exactly what ran.”**
+
+---
+
+**Done — see [EXECUTION.md](EXECUTION.md)** (§419–§462, source §§1–§44), which specifies the
+Execution & Evidence Runtime: the execution trust chain, capability-based authorization and
+scope binding, canonical command / executable / environment identity, worktree isolation and
+network policy, the execution lifecycle, the separate `ExecutionStatus` / `ProcessOutcome` /
+`EvidenceStatus` dimensions, canonical content-addressed receipts, digested artifacts and their
+roles, immutability and append-only invalidation, evidence records and the nine-clause binder,
+the evidence graph and reverse provenance, replay manifests and reproducibility tiers,
+nondeterminism classification, tool receipts and capability classes, execution vs semantic vs
+gate authority, execution failures, the security boundary, receipt signing, evidence strength
+and independence, execution provenance, the runtime crate structure, acceptance criteria
+`EXE-001`–`EXE-015`, the `RFL-EXEC-LAB-001` vertical slice, the `EXE-QA-001`–`EXE-QA-015`
+adversarial suite, the twelve-condition trust theorem, the closed evidence loop, and the
+Migration Orchestrator / Scheduler as the next artifact. Same provenance convention as
+`VERIFICATION.md`.

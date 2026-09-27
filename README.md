@@ -100,9 +100,24 @@ non-self-validating release gate.
   certificate compiler and its structure, certificate invalidation, release authority, human
   review, the complete RFL-AE architecture, the four-layer trust architecture, and the
   Execution & Evidence Runtime. Same provenance convention as `VERIFICATION.md`.
+- **[EXECUTION.md](EXECUTION.md)** (§419–§462, source §§1–§44) — the Execution & Evidence
+  Runtime: the missing trust boundary between "the system says it ran" and "we can prove
+  exactly what ran", the execution trust chain, `ExecutionRequest`, capability-based
+  authorization and scope binding, canonical `CommandSpec` / `ExecutableIdentity` /
+  `EnvironmentFingerprint`, worktree isolation and deny-by-default network policy, the
+  execution lifecycle, the three separate dimensions `ExecutionStatus` / `ProcessOutcome` /
+  `EvidenceStatus`, canonical content-addressed `ExecutionReceipt`, digested artifacts and
+  roles, immutability and append-only invalidation, `EvidenceRecord` and the nine-clause
+  binder, the evidence graph and reverse provenance, replay manifests and reproducibility
+  tiers, nondeterminism classification, tool receipts and the capability registry, execution
+  vs semantic vs gate authority, typed execution failures, the security boundary, receipt
+  signing, evidence strength and independence, execution provenance, the runtime crate
+  structure, acceptance criteria `EXE-001`–`EXE-015`, the `RFL-EXEC-LAB-001` vertical slice,
+  the `EXE-QA-001`–`EXE-QA-015` adversarial suite, the twelve-condition trust theorem, and the
+  closed evidence loop. Same provenance convention as `VERIFICATION.md`.
 
 ## Status
 
-`v0.0` — documentation only. Twelve specification documents covering §1–§418 (§108 does not
+`v0.0` — documentation only. Thirteen specification documents covering §1–§462 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
