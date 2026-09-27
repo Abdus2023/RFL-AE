@@ -1,0 +1,518 @@
+# Verbatim phrases from the PROOF-CARRYING source (§1-§28 + closing section).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The next step is to close the loop between **semantic reconstruction** and **actual C→Rust migration**.
+The central idea is:
+A migrated Rust artifact should carry enough structured information to answer not only “does it compile?” but “which C semantics does it claim to preserve, what evidence supports those semantics, and which obligations remain unresolved?”
+That leads to a proof-carrying migration object.
+Introduce `MigrationUnit`
+A subsystem is too large to be the unit of verification.
+A function is often too small.
+The practical unit should be:
+MigrationUnit
+scheduler/
+migration-unit:
+sched_entity_lifecycle
+net/
+napi_poll_path
+A unit may contain:
+1..N C functions
+1..N C types
+1..N macros
+1..N data structures
+required call-graph neighborhood
+required synchronization context
+pub struct MigrationUnit {
+pub id: MigrationUnitId,
+pub epoch: Epoch,
+pub source: SourceSet,
+pub ksir: SemanticModelId,
+pub contracts: Vec<ContractId>,
+pub design: RustDesignId,
+pub artifact: Option<ArtifactId>,
+This becomes the fundamental object moving through RFL-AE.
+Why function-by-function translation is insufficient
+├── bar()
+└── alloc()
+├── schedule_work()
+└── put_ref()
+The semantics of `foo()` may depend on:
+allocation context
+worker lifetime
+reference counting
+cannot necessarily be certified independently.
++-- foo()
++-- bar()
++-- object lifetime
++-- worker
++-- reference contract
+The unit boundary must be **semantic**, not merely syntactic.
+Dependency closure
+Closure(U)
+as the set of artifacts necessary to establish the contracts of migration unit `U`.
+type   caller  callback
+lock   worker
+lifetime
+Complete(U)
+cannot mean:
+all files in U were translated
+It means:
+all required semantic dependencies have been accounted for.
+Dependency states
+Every dependency should have an explicit state:
+pub enum DependencyState {
+Resolved,
+PartiallyResolved,
+External,
+Deferred,
+Unknown,
+Conflicting,
+This prevents the dangerous behavior:
+unexamined dependency
+implicitly assumed correct
+gate decides whether UNKNOWN is tolerable
+For a critical ownership or concurrency dependency:
+→ BLOCKED
+→ PASS
+Contract graph
+The contract system should become a graph.
+Type-C    Lock-C   Lifetime-C
+Semantic Contract
+Rust Design
+But contracts can depend on other contracts:
+LifetimeContract
+ReferenceContract
+CallbackContract
+WorkerContract
+So certification needs dependency closure.
+Contract identity
+A contract must have stable identity.
+pub struct Contract {
+pub id: ContractId,
+pub subject: SubjectId,
+pub kind: ContractKind,
+pub statement: ContractStatement,
+pub dependencies: Vec<ContractId>,
+pub evidence: Vec<EvidenceId>,
+The human-readable statement is useful for humans and LLMs.
+It is **not** the canonical identity.
+Canonical identity should derive from structured content.
+ContractId =
+canonical_statement,
+Never identify semantics by prose
+"foo probably owns bar"
+OwnershipContract {
+owner: Foo,
+object: Bar,
+state: Owned,
+"this function seems safe under the lock"
+LockContract {
+protected_object: X,
+lock: L,
+required_context: Held(L),
+The LLM can generate the prose.
+The protocol must consume structured semantics.
+Rust Design must map contracts explicitly
+Suppose the C reconstruction produces:
+C Contract:
+object X is reference-counted
+The Rust design must state:
+Rust Design:
+representation = RefCounted<X>
+and the mapping becomes:
+pub struct ContractMapping {
+pub contract: ContractId,
+pub design_element: DesignElementId,
+pub rationale: DesignRationale,
+C semantic contract
+| mapping
+Rust design decision
+is inspectable.
+Design decisions require justification
+A Rust agent should not silently choose between:
+&mut T
+Box<T>
+Arc<T>
+Pin<Box<T>>
+UnsafeCell<T>
+Atomic<T>
+raw pointer
+kernel wrapper
+The choice becomes a design decision:
+pub struct DesignDecision {
+pub id: DesignDecisionId,
+pub question: DesignQuestion,
+pub selected: DesignOption,
+pub rejected: Vec<RejectedOption>,
+pub supporting_contracts: Vec<ContractId>,
+Now the system can ask:
+Why was `Arc<T>` selected?
+and obtain:
+ownership contract + lifetime contract + concurrency contract
+instead of:
+because the model thought it looked right.
+Unsafe design decisions
+Suppose the selected design is:
+unsafe fn ...
+The design decision automatically creates obligations.
+UnsafeObligation
++-- required invariant A
++-- required invariant B
++-- required invariant C
+No obligation may disappear merely because the generated code compiles.
+Generator contract
+The Rust generator should have a narrow interface:
+pub trait RustGenerator {
+fn generate(
+&self,
+design: &RustDesign,
+) -> GenerationResult;
+pub struct GenerationResult {
+pub artifact: ArtifactId,
+pub source_digest: Digest,
+pub generation_record: GenerationRecord,
+The generator does **not** decide:
+Verified
+Certified
+Its authority ends at artifact generation.
+Generation provenance
+This is particularly important for AI-assisted kernel work.
+pub struct GenerationRecord {
+pub id: GenerationId,
+pub agent: AgentId,
+pub model: ModelIdentity,
+pub task: TaskId,
+pub input_digests: Vec<Digest>,
+pub output_digest: Digest,
+pub prompt_digest: Option<Digest>,
+pub tool_digests: Vec<Digest>,
+pub generated_at: Timestamp,
+Then later:
+Human modification
+Final artifact
+must also be represented.
+Human modification is a new artifact transition
+Do not pretend:
+AI-generated source = final source
+GeneratedArtifact
+| human edit
+ModifiedArtifact
+pub struct ArtifactLineage {
+pub parent: ArtifactId,
+pub child: ArtifactId,
+pub transformation: TransformationKind,
+pub enum TransformationKind {
+Generated,
+HumanModified,
+MechanicalFormat,
+MechanicalRewrite,
+Merge,
+CherryPick,
+Now provenance is a graph:
+AI-generated Rust
+Human-modified Rust
+Verified artifact
+Differential verification
+This becomes one of the most important verification modes.
+For behavior `B`:
+C implementation
+| test input I
+result C
+Rust implementation
+| same test input I
+result R
+Compare(result_C, result_R)
+But the comparison itself requires a contract.
+For some kernel behavior:
+exact equality
+may be appropriate.
+For others:
+observational equivalence
+is more appropriate.
+pub enum EquivalenceKind {
+Exact,
+Structural,
+Observational,
+Temporal,
+SetEquivalent,
+The equivalence criterion must be part of the verification contract.
+Differential testing is not universal proof
+Important failure mode:
+C and Rust behave identically on 100 tests
+does **not** establish:
+C and Rust are equivalent for all inputs.
+DifferentialTest
+= Evidence
+= Proof of universal semantic equivalence
+This distinction needs to be encoded in the verification status.
+Verification strength
+Introduce a verification method taxonomy:
+pub enum VerificationMethod {
+StaticAnalysis,
+TypeChecking,
+Build,
+UnitTest,
+KUnit,
+Kselftest,
+RuntimeTest,
+DifferentialTest,
+ModelCheck,
+FormalProof,
+HumanReview,
+pub struct VerificationClaim {
+pub subject: ArtifactId,
+pub property: ContractId,
+pub method: VerificationMethod,
+Now the certificate can say exactly **what was verified and how**.
+Coverage matrix
+For each migration unit:
+E1,E2
+E4,E5
+The overall unit cannot be:
+CERTIFIED
+while a required critical domain is:
+UNKNOWN
+BLOCKED
+Semantic coverage ≠ code coverage
+This distinction is essential.
+A test suite may achieve:
+95% code coverage
+while leaving:
+RCU lifetime semantics
+unverified.
+Therefore RFL-AE should track at least:
+CodeCoverage
+PathCoverage
+ContractCoverage
+EvidenceCoverage
+ConfigurationCoverage
+ArchitectureCoverage
+ConcurrencyCoverage
+None should be substituted for another.
+Migration readiness
+Before generation, define:
+MIGRATION_READY(U)
+requiring:
+source identity valid
+AND dependency closure known
+AND required semantic domains analyzed
+AND critical conflicts resolved
+AND contracts extracted
+AND contracts sufficiently evidenced
+AND design authority granted
+authorizes:
+Rust design generation
+but not necessarily:
+repository mutation
+Implementation authorization
+Separate these:
+DESIGN_AUTHORIZED
+IMPLEMENTATION_AUTHORIZED
+EXECUTION_AUTHORIZED
+RELEASE_AUTHORIZED
+Agent may:
+generate Rust
+without being allowed to:
+modify repository
+run privileged commands
+publish patch
+This gives RFL-AE a capability lattice.
+Observe
+Analyze
+Propose
+Generate
+Modify
+Execute
+Verify
+Release
+Higher levels should not automatically imply lower-level authority across scopes.
+Scope + capability + epoch
+Every privileged operation should satisfy:
+ALLOW(op)
+actor_has_capability
+AND authorization_exists
+AND authorization_epoch == current_epoch
+AND operation_within_scope
+AND task_allows_operation
+AND preconditions_hold
+This becomes the central security equation of RFL-AE.
+The protocol kernel now has a real trust boundary
+UNTRUSTED / PROBABILISTIC
+│  LLM agents
+│  planners
+│  semantic analyzers
+│  code generators
+│  review agents
+typed requests
+TRUSTED PROTOCOL
+│  type validation
+│  epoch validation
+│  authorization
+│  scope enforcement
+│  transitions
+│  event ledger
+│  evidence binding
+│  gate evaluation
+│  certificate derivation
+external evidence
+EXECUTION SYSTEMS
+│ Linux build/test/toolchain infrastructure  │
+The protocol does not need to trust the LLM.
+It needs to trust only:
+typed state + deterministic rules + authorized execution + authenticated evidence
+The actual AI architecture
+With this foundation, the agents can finally become interesting.
+### Semantic agents
+C-ControlFlow
+C-DataFlow
+C-Memory
+C-Lifetime
+C-Locking
+C-RCU
+C-Context
+C-ABI
+C-Config
+C-Architecture
+### Synthesis agents
+ContractSynthesizer
+ConflictResolver
+RustDesigner
+UnsafeReviewer
+### Verification agents
+StaticVerifier
+BuildVerifier
+KUnitVerifier
+RuntimeVerifier
+DifferentialVerifier
+ConcurrencyVerifier
+ABIVerifier
+### Governance agents
+EvidenceAuditor
+GateAuditor
+ProvenanceAuditor
+But none of them become authoritative merely because they have a specialized role.
+Agent disagreement protocol
+LifetimeAgent:
+ownership transfers at A
+ConcurrencyAgent:
+ownership remains with B
+RCUAgent:
+object cannot be freed at A
+The coordinator must not resolve this through voting.
++-- claim A
++-- claim B
++-- claim C
+Evidence acquisition
++-- source analysis
++-- call graph
++-- runtime instrumentation
++-- maintainer knowledge
+Resolution
+If unresolved:
+OPEN / BLOCKED
+That is a feature, not a failure of the AI system.
+The first real benchmark
+RFL-AE should eventually have a benchmark that measures the entire pipeline.
+"Can an LLM translate this C function?"
+Given C migration unit U:
+1. identify source closure
+2. reconstruct semantics
+3. extract contracts
+4. identify conflicts
+5. produce Rust design
+6. enumerate unsafe obligations
+7. generate Rust
+8. execute verification
+9. collect evidence
+10. produce certificate
+Metrics:
+SemanticRecall
+ContractPrecision
+ConflictDetectionRate
+UnsafeObligationRecall
+DesignConformance
+BuildSuccess
+TestConformance
+DifferentialConformance
+EvidenceCompleteness
+ReplayDeterminism
+FalseCertificationRate
+The last one is particularly important.
+The most important metric
+I would explicitly optimize for:
+FALSE_CERTIFICATION_RATE
+CODE_GENERATION_SUCCESS
+wrong Rust + no certificate
+is recoverable.
+wrong Rust + valid-looking certificate
+is a catastrophic failure of the architecture.
+Therefore the system should be conservative.
+UNCERTAIN
+is preferable to:
+when the uncertainty affects a required invariant.
+End-to-end certificate chain
+The final object should look conceptually like:
+CERTIFICATE
+├── Epoch
+├── MigrationUnit
+│   ├── C source digest
+│   └── source closure
+├── KSIR
+│   ├── observations
+│   ├── derivations
+│   └── invariants
+├── Contracts
+│   ├── ownership
+│   ├── lifetime
+│   ├── concurrency
+│   ├── ABI
+│   └── configuration
+├── Rust Design
+│   ├── mappings
+│   └── unsafe obligations
+├── Artifact
+│   └── Rust digest
+├── Generation Provenance
+├── Execution Evidence
+├── Verification Results
+├── Gate Results
+└── Replay Verification
+CertificateDigest =
+H(canonical_certificate)
+The certificate becomes a content-addressed statement about a particular migration state.
+Final architecture
+At this point the complete RFL-AE system becomes:
+HUMAN AUTHORITY
+POLICY / SCOPE
+RFL-AE PROTOCOL
+Epoch ─ Authorization ─ Transition ─ Ledger ─ Gates
+MIGRATION UNIT
+SOURCE EVIDENCE
+SEMANTIC CONTRACTS
+RUST DESIGN IR
+RUST ARTIFACT
+EVIDENCE
+VERIFICATION
+GATES
+UPSTREAM REVIEW STATE
+And the authority direction is strictly one-way:
+AI proposes
+protocol authorizes
+execution produces evidence
+independent verification evaluates
+gates derive status
+certificate records result
+AI verifies
+AI certifies
+The next boundary
+The architecture is now ready for the first **executable vertical slice**.
+The next implementation should be:
+rfl-types
++ rfl-transition
++ rfl-ledger
++ rfl-evidence
++ rfl-gates
++ one MigrationUnit
++ 18 adversarial conformance tests
+Before any Linux subsystem is migrated.
+That vertical slice should become the **RFL-AE protocol-kernel reference implementation**. Once it passes, the same machinery can be applied to the first real kernel migration unit, and the AI agents become replaceable workers operating under a deterministic authority layer rather than being part of the authority itself.

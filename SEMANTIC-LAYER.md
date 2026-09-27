@@ -1531,3 +1531,25 @@ That separation is fundamental.
 The LLM can be uncertain, wrong, inconsistent, or adversarially manipulated. The protocol kernel must still produce the same answer for the same typed state and request.
 
 That is the point where RFL-AE becomes an **AI-assisted verified reconstruction system**, rather than an AI coding swarm with a verification layer attached afterward.
+
+---
+
+**Done — see [PROOF-CARRYING.md](PROOF-CARRYING.md)** (§775–§803, source §§1–§28 plus the
+unnumbered *The next boundary*), which closes the loop between semantic reconstruction and
+actual C→Rust migration with a **proof-carrying migration object**: the `MigrationUnit` as the
+fundamental object moving through RFL-AE, because a unit boundary must be **semantic**, not
+merely syntactic; dependency closure and explicit `DependencyState`s so an unexamined dependency
+becomes `UNKNOWN` rather than implicitly correct; a contract graph with content-derived
+`ContractId`s, because semantics are **never identified by prose**; explicit `ContractMapping`s
+and justified `DesignDecision`s; unsafe design decisions that create obligations which cannot
+disappear because the code compiles; a narrow `RustGenerator` whose authority ends at artifact
+generation; `GenerationRecord` provenance and `ArtifactLineage` for human modification;
+differential verification with explicit `EquivalenceKind`s — evidence, not universal proof; a
+verification-method taxonomy; the coverage matrix and **semantic coverage ≠ code coverage**;
+`MIGRATION_READY(U)`; separate design/implementation/execution/release authorization and the
+capability lattice; the `ALLOW(op)` security equation; the trust boundary between probabilistic
+agents and the deterministic protocol; the agent roster and a disagreement protocol with no
+voting; an end-to-end benchmark that optimises for `FALSE_CERTIFICATION_RATE`; the content-
+addressed certificate chain; the final architecture with its strictly one-way authority
+direction; and the next boundary, the protocol-kernel reference implementation. Same provenance
+convention as `VERIFICATION.md`.

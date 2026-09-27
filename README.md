@@ -308,6 +308,25 @@ non-self-validating release gate.
   end-to-end vertical slice; and the maturity boundary where the **protocol kernel must be
   deterministic** and the **reconstruction engine may use AI**. Same provenance convention as
   `VERIFICATION.md`.
+- **[PROOF-CARRYING.md](PROOF-CARRYING.md)** (§775–§803, source §§1–§28 plus the unnumbered
+  *The next boundary*) — closes the loop between semantic reconstruction and actual C→Rust
+  migration with a **proof-carrying migration object**. The `MigrationUnit` as the fundamental
+  object moving through RFL-AE, whose boundary must be **semantic**, not merely syntactic;
+  dependency closure and explicit `DependencyState`s, so an unexamined dependency becomes
+  `UNKNOWN` rather than implicitly correct; a contract graph with content-derived `ContractId`s,
+  because semantics are **never identified by prose**; explicit `ContractMapping`s and justified
+  `DesignDecision`s; unsafe design decisions whose obligations cannot disappear because the code
+  compiles; a narrow `RustGenerator` whose authority ends at artifact generation;
+  `GenerationRecord` provenance and `ArtifactLineage` for human modification; differential
+  verification with explicit `EquivalenceKind`s — evidence, not universal proof; a
+  verification-method taxonomy; the coverage matrix and **semantic coverage ≠ code coverage**;
+  `MIGRATION_READY(U)`; separate design/implementation/execution/release authorization and the
+  capability lattice; the `ALLOW(op)` security equation; the trust boundary between
+  probabilistic agents and the deterministic protocol; a disagreement protocol with no voting; a
+  benchmark that optimises for `FALSE_CERTIFICATION_RATE`; the content-addressed certificate
+  chain; the final architecture with its strictly one-way authority direction; and the
+  protocol-kernel reference implementation as the next boundary. Same provenance convention as
+  `VERIFICATION.md`.
 
 ## Tooling
 
@@ -335,7 +354,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§774 numbering. Every checkable
+a specification, so it sits outside the §1–§803 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -345,6 +364,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-four specification documents covering §1–§774 (§108 does not
+`v0.0` — documentation only. Twenty-five specification documents covering §1–§803 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
