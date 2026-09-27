@@ -1659,3 +1659,15 @@ At that point, the system is no longer merely an AI coding architecture. It is b
 **machine-checkable semantic migration framework** whose central product is not Rust source
 code, but a traceable argument that a particular Rust implementation preserves a particular,
 explicitly scoped Linux kernel contract.
+
+---
+
+**Done — see [VERIFICATION.md](VERIFICATION.md)** (§357–§386), which defines the
+Verification IR: `VerificationPlan`, `VerificationObligation`, the closed
+`VerificationCategory` taxonomy, the `Proposition` algebra, the claim ≠ test ≠ evidence chain,
+the `OracleKind` model and oracle independence, differential verification and normalization,
+verification scope, the configuration and architecture matrices, static and dynamic
+verification, CI authority, concurrency verification, counterexamples and shrinking, mutation
+verification, verification adequacy, the verification state machine, authority separation, the
+adversarial verifier, the verification compiler, the crate architecture, the migration
+certificate, the complete evidence chain, and the updated RFL-AE compiler.

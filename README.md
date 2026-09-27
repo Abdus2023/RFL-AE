@@ -81,9 +81,19 @@ non-self-validating release gate.
   rejection, search and selection, the design gate, the Rust implementation boundary, generated
   safety obligations, the design-to-verification chain, the complete migration compiler, and the
   three IRs.
+- **[VERIFICATION.md](VERIFICATION.md)** (§357–§386, source §§1–§30) — the Verification IR:
+  `VerificationPlan`, `VerificationObligation`, the closed `VerificationCategory` taxonomy, the
+  `Proposition` algebra, the claim ≠ test ≠ evidence chain, the `OracleKind` model and oracle
+  independence, differential verification and normalization, verification scope, the
+  configuration and architecture matrices, static and dynamic verification, CI authority,
+  concurrency verification, counterexamples and shrinking, mutation verification, verification
+  adequacy, the verification state machine, authority separation, the adversarial verifier, the
+  verification compiler, the crate architecture, the migration certificate, and the complete
+  evidence chain. Section headings carry machine-readable `source: VERIFICATION.md §n`
+  provenance comments.
 
 ## Status
 
-`v0.0` — documentation only. Ten specification documents covering §1–§356 (§108 does not
+`v0.0` — documentation only. Eleven specification documents covering §1–§386 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
