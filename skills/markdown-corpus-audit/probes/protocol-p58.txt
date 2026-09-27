@@ -1,0 +1,474 @@
+# Verbatim phrases from the PROTOCOL-P58 source (§1-§35).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The protocol kernel is now defined enough that the next step is to connect
+without allowing any of those layers to become hidden authority.
+The key architecture becomes:
+The important distinction remains:
+Evidence says:
+WHAT WAS OBSERVED
+Verification says:
+WHAT THE OBSERVATION ESTABLISHES
+Gate says:
+WHETHER REQUIREMENTS ARE SATISFIED
+Protocol says:
+WHETHER THE STATE TRANSITION IS ALLOWED
+The in-memory store proves the semantics.
+Persistence proves that those semantics survive process boundaries.
+Do not begin with PostgreSQL.
+append-only event log
+crates/rfl-protocol/src/store/
+append_log.rs
+integrity.rs
+Use length-delimited records.
+payload_length
+event_digest
+record_checksum
+The physical format is not the semantic event itself.
+It is merely a durable container.
+The store must enforce:
+read current head
+compare expected head
+validate previous digest
+append complete record
+flush according to durability policy
+publish new head
+A failed append must not expose a partially accepted event.
+The store needs explicit recovery semantics.
+scan records
+validate framing
+validate hash chain
+validate state transition
+reconstruct head
+pub enum RecoveryStatus {
+RecoveredTail,
+CorruptHistory,
+SequenceGap,
+DigestMismatch,
+SchemaUnsupported,
+Do not silently truncate corrupted history.
+If recovery finds:
+CORRUPTED
+CORRUPT_HISTORY
+unless an explicitly defined recovery policy authorizes tail recovery.
+This distinction needs to be explicit.
+event constructed
+event accepted
+event durably persisted
+operation executed
+claim verified
+These are separate states.
+This prevents the event store from becoming another source of semantic ambiguity.
+Persistence can itself generate an infrastructure receipt:
+pub struct AppendReceipt {
+pub storage_identity: StorageIdentity,
+pub durability: DurabilityStatus,
+pub record_offset: u64,
+pub enum DurabilityStatus {
+Buffered,
+Flushed,
+Synced,
+The protocol can require `Synced` for particularly important transitions if policy demands it.
+durability property
+Now connect the execution/evidence architecture to the protocol.
+The central rule:
+Artifact
+Observation
+EvidenceRecord
+VerificationClaim
+test output
+The protocol should store references, not duplicate evidence.
+pub struct EvidenceRef {
+pub evidence_id: EvidenceId,
+pub snapshot: KernelSnapshotId,
+pub variant: BuildVariantId,
+pub validity: EvidenceValidity,
+This means a migration can reference evidence without owning its bytes.
+The evidence ledger remains authoritative for evidence integrity.
+pub enum EvidenceValidity {
+Superseded,
+Invalidated,
+Unreachable,
+Incomplete,
+A gate must explicitly reject:
+when the gate requires current evidence.
+Kernel snapshot S1
+Contract C1
+Design D1
+Implementation I1
+Verification V1
+Then source changes:
+The dependency graph determines what remains valid.
+Potentially:
+INVALIDATED
+But unrelated evidence might remain valid.
+Therefore invalidation must be **dependency-driven**, not global.
+cannot simply contain:
+status: Verified
+pub struct VerificationSubmission {
+pub obligations: Vec<ObligationId>,
+pub evidence: Vec<EvidenceRef>,
+pub oracle_results: Vec<OracleResultRef>,
+pub counterexamples: Vec<CounterexampleRef>,
+The protocol records the submission.
+The verification engine determines whether the evidence actually satisfies each obligation.
+pub enum VerificationStatus {
+Unverified,
+Provisional,
+PartiallyVerified,
+Verified,
+Blocked,
+And per obligation:
+pub struct ObligationResult {
+pub blocking_unknowns: Vec<UnknownId>,
+pub conflicts: Vec<ConflictId>,
+This prevents the dangerous aggregate:
+97/100 tests passed → VERIFIED
+There is no such inference unless the gate explicitly defines it.
+Coverage should be semantic.
+pub struct VerificationCoverage {
+pub obligations_total: usize,
+pub obligations_satisfied: usize,
+pub obligations_blocked: usize,
+pub obligations_unverified: usize,
+pub dimensions: BTreeMap<VerificationDimension, DimensionStatus>,
+Dimensions:
+Return/Error
+StateTransition
+ResourceLifecycle
+Synchronization
+ObservableIO
+No numerical score should determine correctness.
+The numbers are descriptive coverage metadata.
+An oracle is not necessarily the original C implementation.
+pub enum OracleKind {
+ExactOutput,
+Relational,
+StateInvariant,
+Temporal,
+AbiLayout,
+Concurrency,
+Differential,
+For differential testing:
+normalized observation
+C implementation
+Rust implementation
+comparison
+The comparison relation must be explicit.
+Do not define:
+C output == Rust output
+as a universal rule.
+Kernel behavior can contain:
+nondeterminism
+architecture differences
+pointer identity
+scheduler effects
+allocator differences
+intentionally unspecified representation
+Instead define:
+pub enum ComparisonRelation {
+Equivalent,
+InvariantPreserving,
+StateEquivalent,
+TraceEquivalent,
+AllowedDifference,
+pub struct DifferentialContract {
+pub relation: ComparisonRelation,
+pub normalization: Option<NormalizationRule>,
+pub allowed_differences: Vec<AllowedDifference>,
+The oracle itself becomes an auditable artifact.
+Now gates consume the protocol state plus evidence and verification results.
+Gate Engine ≠ Protocol Engine
+The gate engine answers:
+Are the declared requirements satisfied?
+The protocol answers:
+Is the requested state transition permitted?
+Represent gates as typed predicates.
+pub enum GateRequirement {
+ArtifactExists(ArtifactId),
+EvidenceValid(EvidenceId),
+ObligationVerified(ObligationId),
+NoCriticalUnknown,
+NoCriticalConflict,
+SnapshotMatches,
+VariantMatches,
+IndependentVerification,
+RequiredAuthority(AuthorityClass),
+RequiredReview,
+RequiredRegressionCoverage,
+Composite gates:
+pub enum GateExpr {
+Requirement(GateRequirement),
+All(Vec<GateExpr>),
+Any(Vec<GateExpr>),
+Not(Box<GateExpr>),
+But avoid unrestricted logic if it becomes difficult to audit.
+For v0.1, `All` should dominate release gates.
+IMPLEMENTATION_RELEASE_GATE = ALL(
+ContractVerified,
+DesignVerified,
+ImplementationArtifactExists,
+ABIContractSatisfied,
+NoCriticalConflict
+Testing gate:
+TEST_GATE = ALL(
+VerificationPlanExists,
+RequiredObligationsEvaluated,
+ExecutionReceiptsValid,
+RequiredVariantsExecuted,
+NoBlockingCounterexample
+Release gate:
+RELEASE_GATE = ALL(
+ContractSatisfied,
+DesignSatisfied,
+VerificationSatisfied,
+AdversarialVerificationSatisfied,
+RegressionSatisfied,
+ReviewApproved,
+NoBlockingUnknown,
+NoBlockingConflict,
+SnapshotCurrent
+A gate should never return only:
+pub struct GateResult {
+pub gate_id: GateId,
+pub status: GateStatus,
+pub satisfied: Vec<RequirementResult>,
+pub unsatisfied: Vec<RequirementResult>,
+pub blocked: Vec<RequirementResult>,
+pub digest: Digest,
+pub enum GateStatus {
+Pass,
+Fail,
+NotApplicable,
+This makes:
+different from:
+That distinction matters.
+This is not evidence that the ABI is wrong.
+ABI verification
+ABI layout = UNKNOWN
+Therefore:
+GateStatus::Blocked
+rather than:
+GateStatus::Fail
+UNKNOWN ≠ FALSE
+Every gate result should expose its provenance:
+Requirement
+Obligation
+Verification
+Oracle Result
+Evidence
+Receipt
+This becomes the basis for the migration certificate.
+Only now should we construct the certificate.
+pub struct MigrationCertificate {
+pub certificate_id: CertificateId,
+pub migration_unit: MigrationUnitId,
+pub contract: ContractId,
+pub design: DesignId,
+pub implementation: ArtifactId,
+pub verification: VerificationId,
+pub gates: Vec<GateResult>,
+pub unresolved_nonblocking_unknowns: Vec<UnknownId>,
+pub unresolved_nonblocking_conflicts: Vec<ConflictId>,
+pub scope: CertificateScope,
+pub generated_at: LogicalTime,
+Certificate scope must be explicit.
+This is subtle.
+Certificate
+Release authorization
+within this declared scope
+against this snapshot/variant
+using these artifacts/evidence/gates
+Release authority then decides whether the certificate satisfies the release policy.
+Release Gate
+Release Authorization
+automatic release
+unless the protocol explicitly defines release automation as the authorized policy.
+We now have:
+SOURCE
+KSIR FACT
+OBLIGATION
+IMPLEMENTATION
+EXECUTION
+CERTIFICATE
+REVIEW
+RELEASE
+Every arrow has a defined artifact.
+That is much stronger than an agent producing a final report saying:
+"Migration appears safe."
+Notice that:
+GateEvaluated
+does not necessarily mean:
+GatePassed
+The payload contains the actual result.
+The protocol now needs a graph of authority dependencies.
+pub enum DependencyKind {
+Semantic,
+Contract,
+Design,
+Implementation,
+Verification,
+Evidence,
+Gate,
+Certificate,
+KSIR fact
+If the KSIR fact is invalidated:
+Contract INVALID
+Design STALE
+Verification INVALID
+Gate INVALID
+Certificate INVALID
+The invalidation engine follows explicit dependency edges.
+These must remain different.
+Evidence has been demonstrated to be unusable.
+receipt digest mismatch
+The artifact may have been correct for an earlier state, but the current state changed.
+Contract C1 valid at epoch 4
+Contract changes at epoch 5
+C1 → STALE
+This is important for historical reconstruction.
+Epoch advancement should itself be a protocol transition.
+CURRENT EPOCH = 4
+contract changed
+AdvanceEpoch
+EPOCH = 5
+dependent work becomes stale
+The event:
+pub struct EpochAdvanced {
+pub old_epoch: Epoch,
+pub new_epoch: Epoch,
+pub reason: EpochAdvanceReason,
+pub invalidated: Vec<ArtifactId>,
+The invalidation list should be derivable from dependency state rather than being trusted merely because an agent supplied it.
+At this stage, avoid making the protocol event payload carry arbitrary JSON.
+payload: serde_json::Value
+That would create a type escape hatch.
+pub enum EventPayload {
+MigrationDiscovered(MigrationDiscovered),
+MigrationMapped(MigrationMapped),
+ContractSubmitted(ContractSubmitted),
+DesignSubmitted(DesignSubmitted),
+ImplementationAuthorized(ImplementationAuthorized),
+ImplementationSubmitted(ImplementationSubmitted),
+VerificationSubmitted(VerificationSubmitted),
+EvidenceBound(EvidenceBound),
+GateEvaluated(GateEvaluated),
+CertificateGenerated(CertificateGenerated),
+Every event gets a typed schema.
+Hashing must operate over canonical bytes.
+Rust struct
+canonical serialization
+bytes
+SHA-256
+Debug formatting
+JSON with arbitrary map ordering
+platform-dependent serialization
+The serialization specification should become part of `PROTOCOL.md`.
+Freeze the lifecycle formally:
+DISCOVERED
+MAPPED
+CONTRACTED
+DESIGNED
+AUTHORIZED_FOR_IMPLEMENTATION
+IMPLEMENTED
+AUTHORIZED_FOR_TESTING
+PARTIALLY_VERIFIED
+VERIFIED
+ADVERSARIALLY_VERIFIED
+AUTHORIZED_FOR_REVIEW
+RELEASE_ELIGIBLE
+QUARANTINED
+is reachable when blocking conditions require it.
+Quarantine is not an ordinary lifecycle state.
+It is an **authority suppression state**.
+While quarantined:
+implementation authority = suspended
+release authority = unavailable
+canonical promotion = unavailable
+Historical artifacts remain readable.
+New investigation work can still be authorized.
+Investigation
+evidence resolves issue
+conflict remains
+Resolution must generate evidence and a new epoch when required.
+The first complete protocol QA should look like this:
+deterministic reducer
+canonical digest
+legal transition
+illegal transition
+wrong authority
+missing capability
+out-of-scope command
+stale command
+stale CAS
+modified payload
+reordered event
+full replay
+snapshot replay
+IDENTICAL
+rebuild
+invalid evidence
+stale evidence
+BLOCK/REJECT
+missing obligation
+FAIL/BLOCK
+critical unknown
+critical conflict
+implementation self-verification
+scheduler release authority
+The first actual repository tag should be something like:
+rfl-ae-protocol-v0.1.0-alpha
+but only after:
+PROTOCOL-GATE-001
+The release artifact should contain:
+protocol version
+schema version
+source commit
+event format version
+state schema version
+test corpus digest
+conformance results
+adversarial test results
+toolchain fingerprint
+artifact digests
+That gives us:
+Protocol Release
+source identity
+semantic identity
+schema identity
+verification evidence
+Now the architecture has reached the point where another large conceptual chapter would have diminishing value.
+The next implementation target is:
+RFL-AE v0.1
+rfl-types
+rfl-protocol
+typed commands
+typed events
+transition algebra
+deterministic reducer
+event store
+protocol QA
+rfl-evidence
+evidence records
+dependency graph
+invalidation
+provenance
+rfl-verification
+obligations
+oracle
+differential verification
+rfl-gates
+requirement algebra
+gate evaluation
+certificate compilation
+Then the first **real RFL-AE vertical slice** becomes possible:
+Migration discovery
+KSIR structural facts
+Rust design
+Implementation artifact
+Authorized execution
+Execution receipt
+Verification obligation
+Migration certificate
+At that point we should stop extending the architecture temporarily and build **MU-000001 end-to-end**.
+That is the first point where the architecture can be tested against reality rather than against itself.

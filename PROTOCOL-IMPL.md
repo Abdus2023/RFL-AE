@@ -1269,3 +1269,24 @@ The protocol kernel is the foundation on which the rest of RFL-AE can safely bec
 > Given the same authorized command stream, RFL-AE reconstructs exactly the same canonical protocol state, rejects every unauthorized or semantically illegal transition in the conformance corpus, and detects tampered history.
 
 That is the first real executable theorem of the system.
+
+---
+
+**Done — see [PROTOCOL-P58.md](PROTOCOL-P58.md)** (§576–§610, source §§1–§35), which connects
+persistence, evidence and gates to the kernel without letting any of those layers become hidden
+authority: P5's append-only event log, its length-delimited physical record, the locking append
+protocol, explicit `RecoveryStatus` crash semantics with no silent truncation, the chain
+`event constructed ≠ event accepted ≠ event durably persisted ≠ operation executed ≠ claim
+verified`, and the `AppendReceipt`/`DurabilityStatus` distinction that durability is not
+verification; P6's evidence binding where the protocol stores `EvidenceRef` rather than bytes,
+`EvidenceValidity` and dependency-driven rather than global invalidation, `VerificationSubmission`
+that cannot merely carry `status: Verified`, per-obligation `ObligationResult`, semantic coverage,
+the `OracleKind` model and `ComparisonRelation`/`DifferentialContract` so that `C output == Rust
+output` is never a universal rule; P7's gate algebra as typed predicates, `GateExpr`, the
+implementation/test/release gates, `GateResult` with `GateStatus` keeping `FAIL` distinct from
+`BLOCKED` because `UNKNOWN ≠ FALSE`, and the gate evidence chain; and P8's `MigrationCertificate`,
+which is a claim and not release authority, the full source-to-release chain, the extended
+`EventKind` and typed `EventPayload`, dependency invalidation, stale versus invalid, epoch
+advancement as a transition, canonical serialization, the frozen lifecycle transition table, the
+quarantine authority-suppression invariant, the protocol QA matrix, the release boundary, and the
+next implementation slice. Same provenance convention as `VERIFICATION.md`.

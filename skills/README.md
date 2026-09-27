@@ -1,7 +1,7 @@
 # RFL-AE skills
 
 The reusable toolchain distilled from producing this specification corpus —
-sixteen documents, 574 sections, ~200 generated diagrams — across sixteen
+seventeen documents, 609 sections, ~260 generated diagrams — across seventeen
 consecutive specification pastes.
 
 These are not notes about the process. They are the process, runnable.

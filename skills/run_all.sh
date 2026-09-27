@@ -43,7 +43,7 @@ stage "2/7 skills are well-formed" \
   $PY skills/skill-creator/scripts/validate_skill.py skills/
 
 # --strict: a render check that could not run must fail the stage, not pass it
-stage "3/7 corpus audit (16 documents)" \
+stage "3/7 corpus audit (17 documents)" \
   $PY skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108 --strict
 
 stage "4/7 every internal link resolves (rendered HTML)" \
@@ -51,13 +51,13 @@ stage "4/7 every internal link resolves (rendered HTML)" \
       --allow skills/markdown-corpus-audit/SKILL.md
 
 stage "5/7 last document audited in full" \
-  $PY skills/markdown-corpus-audit/scripts/audit_file.py PROTOCOL-IMPL.md \
-      --range 548-575 --source-name PROTOCOL-IMPL.md --offset 547 --strict \
-      --probes skills/markdown-corpus-audit/probes/protocol-impl.txt
+  $PY skills/markdown-corpus-audit/scripts/audit_file.py PROTOCOL-P58.md \
+      --range 576-610 --source-name PROTOCOL-P58.md --offset 575 --strict \
+      --probes skills/markdown-corpus-audit/probes/protocol-p58.txt
 
 stage "6/7 close-out ritual verified" \
   $PY skills/spec-turn-closeout/scripts/verify_closeout.py \
-      --new PROTOCOL-IMPL.md --prev PROTOCOL-KERNEL.md
+      --new PROTOCOL-P58.md --prev PROTOCOL-IMPL.md
 
 echo
 echo "════════ 7/7 negative tests (each MUST fail) ════════"

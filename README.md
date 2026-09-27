@@ -161,6 +161,23 @@ non-self-validating release gate.
   authorization / epoch / tamper tests, the `PROTO-GATE-001` checklist, the frozen crate
   dependency boundary, and the P0–P10 implementation progression. Rust here is specification,
   not a compiled crate. Same provenance convention as `VERIFICATION.md`.
+- **[PROTOCOL-P58.md](PROTOCOL-P58.md)** (§576–§610, source §§1–§35) — connecting persistence,
+  evidence and gates to the kernel without letting any of them become hidden authority. **P5**
+  persistence: the append-only event log, its length-delimited physical record, the locking
+  append protocol, explicit `RecoveryStatus` crash semantics with no silent truncation, and the
+  rule that `event constructed ≠ event accepted ≠ event durably persisted ≠ operation executed ≠
+  claim verified`. **P6** evidence binding: `EvidenceRef` references rather than bytes,
+  `EvidenceValidity`, dependency-driven rather than global invalidation, a
+  `VerificationSubmission` that cannot merely carry `status: Verified`, per-obligation
+  `ObligationResult`, semantic coverage, and `OracleKind` with `ComparisonRelation` so that
+  `C output == Rust output` is never a universal rule. **P7** gates: the gate algebra as typed
+  predicates and `GateExpr`, the implementation/test/release gates, and `GateStatus` keeping
+  `FAIL` distinct from `BLOCKED` because `UNKNOWN ≠ FALSE`. **P8** certificates:
+  `MigrationCertificate` as a claim and not release authority, the full source-to-release chain,
+  typed `EventPayload`, dependency invalidation, stale versus invalid, epoch advancement as a
+  transition, canonical serialization, the frozen lifecycle transition table, the quarantine
+  authority-suppression invariant, the protocol QA matrix, and the release boundary. Same
+  provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -188,7 +205,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§575 numbering. Every checkable
+a specification, so it sits outside the §1–§610 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -198,6 +215,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Sixteen specification documents covering §1–§575 (§108 does not
+`v0.0` — documentation only. Seventeen specification documents covering §1–§610 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
