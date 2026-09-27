@@ -155,6 +155,18 @@ newest document, verifies the last close-out, and then runs three negative tests
 that must each fail. It exits non-zero if any stage fails, and it refuses to
 report a skipped check as a pass.
 
+## Audit
+
+[`audit/`](audit/README.md) contains an external deep audit of this branch at
+`952e300`, split into eight themed documents. It is a review of the corpus, not
+a specification, so it sits outside the §1–§517 numbering. Every checkable
+claim in it was re-verified before being saved; the results, including one
+correction to the report, are recorded in
+[audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
+
+Its conclusion is accepted: this is a **specification-level system**, which is
+what the status line below already says.
+
 ## Status
 
 `v0.0` — documentation only. Fourteen specification documents covering §1–§517 (§108 does not
