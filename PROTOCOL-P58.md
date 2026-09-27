@@ -1447,3 +1447,23 @@ Migration certificate
 At that point we should stop extending the architecture temporarily and build **MU-000001 end-to-end**.
 
 That is the first point where the architecture can be tested against reality rather than against itself.
+
+---
+
+**Done — see [FIRST-MIGRATION.md](FIRST-MIGRATION.md)** (§611–§640, source §§1–§29 plus the
+unnumbered *Frozen next milestone*), which turns the architecture into a first closed-loop
+migration unit: the frozen `RFL-AE-LAB-001 / MU-000001` vertical slice and its deliberately
+bounded scope, the small kernel-like C fixture whose ownership relationship is *not* obvious
+from syntax alone, the expected KSIR facts and the controlled unknowns that prove
+`unsupported analysis ↓ UNKNOWN` rather than `assumed safe`, the contract compiler and its
+evidence-referenced statements, the contract graph that becomes the source of Rust design
+obligations, ownership / lock / callback mappings with `D-LOCK-001…005`, the unsafe obligations
+`UO-001…003` that become verification obligations rather than comments, verification IR and
+obligation-derived tests, the negative corpus that tests the verifier rather than the happy
+path, execution and receipts, the evidence chain and its refusal to claim `UO-002 VERIFIED`,
+`LAB001-GATE` returning `PASS / FAIL / BLOCKED` rather than a confidence percentage, the
+independent-verification topology, the deliberate protocol attacks, the migration certificate
+and its invariant, the `MU-000001` proof-carrying manifest, the two state machines that must
+not be merged, the real measurements that replace lines-of-Rust and tokens-consumed, and the
+thirteen questions the unit must answer mechanically — because if any answer is *"the agent
+said so"*, the vertical slice has failed. Same provenance convention as `VERIFICATION.md`.

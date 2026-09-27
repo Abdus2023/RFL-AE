@@ -178,6 +178,22 @@ non-self-validating release gate.
   transition, canonical serialization, the frozen lifecycle transition table, the quarantine
   authority-suppression invariant, the protocol QA matrix, and the release boundary. Same
   provenance convention as `VERIFICATION.md`.
+- **[FIRST-MIGRATION.md](FIRST-MIGRATION.md)** (§611–§640, source §§1–§29 plus the unnumbered
+  *Frozen next milestone*) — the first closed-loop migration unit. The goal is not to migrate a
+  meaningful subsystem but to prove RFL-AE can take **one bounded C unit through the entire
+  authority/evidence pipeline** without bypassing its own protocol: the frozen
+  `RFL-AE-LAB-001 / MU-000001` slice, a small kernel-like C fixture whose ownership relationship
+  is deliberately *not* obvious from syntax alone, expected KSIR facts, controlled unknowns that
+  prove `unsupported analysis ↓ UNKNOWN` rather than `assumed safe`, the contract compiler and
+  its evidence-referenced statements, the contract graph, ownership/lock/callback mappings,
+  unsafe obligations `UO-001…003` that become verification obligations rather than comments,
+  verification IR and obligation-derived tests, a **negative corpus** that tests the verifier
+  rather than the happy path, execution receipts, the evidence chain, `LAB001-GATE` returning
+  `PASS / FAIL / BLOCKED` and not a confidence percentage, the independent-verification
+  topology, deliberate protocol attacks, the migration certificate and its invariant, the
+  proof-carrying `MU-000001` manifest, two state machines that must not be merged, and the
+  thirteen questions the unit must answer mechanically — if any answer is *"the agent said so"*,
+  the vertical slice has failed. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -205,7 +221,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§610 numbering. Every checkable
+a specification, so it sits outside the §1–§640 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -215,6 +231,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Seventeen specification documents covering §1–§610 (§108 does not
+`v0.0` — documentation only. Eighteen specification documents covering §1–§640 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

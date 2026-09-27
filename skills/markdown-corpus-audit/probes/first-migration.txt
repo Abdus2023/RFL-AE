@@ -1,0 +1,505 @@
+# Verbatim phrases from the FIRST-MIGRATION source (§1-§29 + closing clause).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The architecture is now mature enough to build the first **closed-loop migration unit**.
+The goal is not yet to migrate a meaningful Linux subsystem.
+one bounded C unit through the entire authority/evidence pipeline
+without bypassing its own protocol.
+RFL-AE-LAB-001
+MU-000001
+Scope:
+C source
+one object type
+one allocation path
+one initialization path
+one refcount/lifetime rule
+one synchronized mutation
+one callback
+one destruction path
+one C/Rust boundary
+Do **not** start with:
+RCU + workqueues + IRQ + DMA + VFS
+in the same unit.
+The lab needs enough semantic difficulty to exercise the architecture, but not enough complexity to make failures ambiguous.
+Create a deliberately small kernel-like C fixture.
+fixtures/lab001/
+include/
+lab_object.h
+lab_object.c
+lib.rs
+lifecycle.c
+differential.rs
+expected/
+ksir.json
+contract.json
+obligations.json
+The C fixture should contain:
+allocation
+initialization
+publication
+get()
+callback registration
+mutation under lock
+callback
+put()
+destruction
+The deliberately important part is that **the ownership relationship should not be obvious from syntax alone**.
+struct lab_object {
+refcount_t refs;
+spinlock_t lock;
+int value;
+struct work_struct work;
+struct lab_object *lab_get(struct lab_object *obj) {
+refcount_inc(&obj->refs);
+return obj;
+void lab_put(struct lab_object *obj) {
+if (refcount_dec_and_test(&obj->refs))
+kfree(obj);
+void lab_update(struct lab_object *obj, int value) {
+spin_lock(&obj->lock);
+obj->value = value;
+spin_unlock(&obj->lock);
+void lab_schedule(struct lab_object *obj) {
+schedule_work(&obj->work);
+with callback:
+void lab_work(struct work_struct *work) {
+container_of(work, struct lab_object, work);
+lab_update(obj, 42);
+lab_put(obj);
+This tiny fixture already forces RFL-AE to reconstruct:
+refcount
+ownership
+callback lifetime
+container_of
+intrusive embedding
+workqueue context
+locking
+That is sufficient for Lab 001.
+The analyzer should produce semantic facts such as:
+OBJ-001
+type = lab_object
+OWN-001
+refs protects object lifetime
+OWN-002
+lab_get acquires reference
+OWN-003
+lab_put releases reference
+OWN-004
+zero reference permits destruction
+LOCK-001
+lock protects value
+CTX-001
+lab_work executes in deferred process context
+CALL-001
+schedule_work → lab_work
+LIFE-001
+callback requires object to remain alive
+INTR-001
+work_struct embedded in lab_object
+ABI-001
+C callback receives work_struct-compatible pointer
+But importantly:
+KSIR fact
+contract
+KSIR describes what the analyzer reconstructed.
+The fixture should also deliberately produce at least one controlled unknown.
+UNKNOWN-001
+exact architecture-independent layout
+UNKNOWN-002
+indirect callback reachability
+depending on which analyzer capabilities are enabled.
+The purpose is to prove:
+unsupported analysis
+UNKNOWN
+rather than:
+assumed safe
+From KSIR:
+Contract compiler
+lifetime
+locking
+context
+ABI
+produces:
+contract/MU-000001/
+invariants.json
+temporal.json
+unknowns.json
+conflicts.json
+Example normalized contract:
+C-001
+Subject:
+lab_object
+Precondition:
+object initialized
+Invariant:
+refs > 0 while object is accessible
+Postcondition:
+lab_get increments refs
+value mutation occurs while lock held
+Temporal:
+callback object remains valid until callback completion
+final reference release permits destruction
+Context:
+lab_work may execute in deferred process context
+Each statement gets an evidence reference.
+No free-floating prose contract.
+The important relationship is:
+lifetime
+value
+callback
+refcount
+lock
+workqueue
+invariants
+This graph becomes the source for Rust design obligations.
+Now produce a design.
+Not code.
+Contract
+Rust Design IR
+Possible design:
+lab_object
+struct LabObject {
+refs: RefCount,
+lock: SpinLock<State>,
+work: WorkItem<Self>,
+But the design compiler must justify each mapping.
+C refcount
+Rust ownership model
+lab_get()
+acquire reference
+lab_put()
+release reference
+zero
+The critical question:
+What Rust mechanism guarantees that the object remains alive while the deferred callback executes?
+That cannot be answered merely by writing:
+Arc<LabObject>
+because the semantics of the kernel refcount and callback lifetime must first be characterized.
+The design must prove the mapping.
+spin_lock
+mutation
+spin_unlock
+Rust candidate:
+SpinLock<State>
+Design obligations:
+D-LOCK-001 all mutable accesses represented
+D-LOCK-002 no bypass path
+D-LOCK-003 locking semantics preserve source behavior
+D-LOCK-004 callback context permits primitive
+D-LOCK-005 IRQ/preemption semantics preserved
+If any of those remain unknown:
+DESIGN ≠ AUTHORIZED_FOR_IMPLEMENTATION
+This is where the lab becomes useful.
+The design must establish:
+registration
+callback reachability
+object lifetime
+cancellation/quiescence
+final release
+A callback is not merely:
+fn callback()
+It is a temporal contract.
+The design compiler should produce something like:
+UO-001 C pointer → Rust reference
+Required:
+pointer valid
+aligned
+initialized
+object alive
+correct provenance
+UO-002 container_of equivalent
+embedded field belongs to containing object
+offset/layout exact
+address remains stable
+UO-003 FFI callback
+ABI compatible
+calling convention compatible
+lifetime valid
+context valid
+These are not comments.
+They become verification obligations.
++ Design
++ Unsafe Obligations
+Verification Compiler
+Verification IR
+id: UO_002,
+category: AbiLayout,
+"work field offset matches C layout",
+oracle: AbiLayoutOracle,
+required_variants: [x86_64, ...],
+Another:
+id: LIFE_001,
+category: ResourceLifecycle,
+"callback cannot dereference object after final release",
+oracle: LifecycleInvariantOracle,
+The verification compiler should derive tests from obligations.
+OBLIGATION
+static check
+compile check
+runtime test
+differential test
+adversarial test
+For `LOCK-001`:
+normal mutation
+concurrent mutation
+callback mutation
+lock bypass attempt
+For `LIFE-001`:
+normal callback
+callback + release race
+cancel + release
+duplicate release
+callback after teardown
+This is essential.
+Create intentionally wrong Rust implementations:
+fixtures/lab001/negative/
+missing_ref.rs
+double_put.rs
+use_after_free.rs
+lock_bypass.rs
+wrong_layout.rs
+wrong_callback_context.rs
+ffi_lifetime_violation.rs
+The system should demonstrate:
+correct implementation
+obligations satisfied
+incorrect implementation
+at least one obligation fails
+This tests the verifier rather than merely the happy path.
+Only now is code execution authorized.
+AUTHORIZED_FOR_TESTING
+ExecutionRequest
+capability validation
+isolated worktree
+exact command
+executor
+ExecutionReceipt
+Example command identity:
+rustc
+argv = [...]
+cwd = ...
+environment = ...
+toolchain = ...
+Every generated test result is attached to the receipt.
+The resulting chain:
+test
+stdout/stderr
+artifact
+receipt
+observation
+evidence
+EV-001
+subject = UO-002
+receipt = R-014
+artifact = A-031
+snapshot = S-001
+variant = V-001
+status = OBSERVED
+The evidence ledger does not itself claim:
+UO-002 VERIFIED
+That remains the verification layer's job.
+The verifier consumes:
+VerificationObligation + Evidence + Oracle
+and produces:
+obligation: UO_002,
+status: Verified,
+evidence: [EV_001],
+oracle_result: OR_001,
+Only now can the gate engine evaluate the requirement.
+For Lab 001:
+LAB001-GATE = ALL(
+snapshot_valid,
+contract_reconciled,
+design_reconciled,
+no_critical_unknown,
+no_critical_conflict,
+implementation_exists,
+all_required_obligations_verified,
+ABI_verified,
+lifetime_verified,
+concurrency_verified,
+negative_tests_detected,
+independent_verification_completed
+The output:
+PASS
+FAIL
+BLOCKED
+not a confidence percentage.
+This is the point where the architecture's authority separation becomes testable.
+Topology:
+DESIGN AGENT
+IMPLEMENTER
+ARTIFACT
+CONTRACT REVIEW
+VERIFICATION
+ADVERSARIAL QA
+GATE
+The implementation agent cannot approve its own result.
+attempt:
+ImplementationAgent
+SubmitVerification
+Expected:
+ProtocolError::Authorization
+Scheduler
+AuthorizeRelease
+Agent
+submit stale verification
+ProtocolError::StaleEpoch
+verification using invalidated evidence
+GateStatus::Blocked
+These are system tests, not merely unit tests.
+Only after all gates pass:
+MigrationCertificate
+Certificate graph:
+S-001
+KSIR-001
+CONTRACT-001
+DESIGN-001
+IMPLEMENTATION-001
+EXECUTION-001
+EVIDENCE-001
+VERIFICATION-001
+GATE-001
+CERTIFICATE-001
+The certificate should contain digests for every node.
+The certificate generator should reject:
+missing contract
+missing design
+missing implementation
+missing verification
+missing evidence
+invalid receipt
+invalidated evidence
+critical unknown
+critical conflict
+stale snapshot
+variant mismatch
+failed gate
+Therefore:
+implies all declared certificate prerequisites exist
+but not:
+implies the migrated code is universally correct
+Scope remains bounded.
+The complete artifact becomes:
+migration/MU-000001/
+manifest.json
+snapshot.json
+variant.json
+scope.json
+ksir/
+facts.json
+conflicts.json
+contract/
+design/
+design.json
+mappings.json
+unsafe-obligations.json
+implementation/
+commit.json
+artifacts/
+verification/
+plan.json
+results.json
+oracle-results.json
+counterexamples/
+execution/
+receipts/
+evidence/
+records/
+dependencies.json
+gates/
+certificate/
+migration-certificate.json
+This is effectively a **proof-carrying migration package**.
+The whole unit now has two interacting state machines.
+Migration state
+DISCOVERED
+MAPPED
+CONTRACTED
+DESIGNED
+AUTHORIZED_FOR_IMPLEMENTATION
+IMPLEMENTED
+AUTHORIZED_FOR_TESTING
+VERIFIED
+ADVERSARIALLY_VERIFIED
+AUTHORIZED_FOR_REVIEW
+RELEASE_ELIGIBLE
+RELEASED
+Evidence state
+NOT_PRESENT
+OBSERVED
+BOUND
+RECONCILED
+VERIFICATION_INPUT
+They must **not** be merged.
+Before MU-000001, RFL-AE is primarily an architecture.
+After MU-000001 passes, it becomes an experimentally demonstrated system.
+The critical measurements are no longer:
+number of agents
+number of prompts
+lines of generated Rust
+tokens consumed
+Instead:
+Protocol determinism
+replay equivalence
+Authority isolation
+unauthorized transition rejection
+Evidence integrity
+receipt/artifact binding
+Snapshot discipline
+mismatch rejection
+Unknown handling
+unknown preservation
+Contract coverage
+obligations reconstructed
+Verification
+obligations independently evaluated
+Adversarial robustness
+negative corpus
+Reproducibility
+replay execution
+Auditability
+complete provenance chain
+The strongest criterion for this milestone is:
+must be able to answer, mechanically:
+What source snapshot was migrated?
+What semantic facts were reconstructed?
+What remains unknown?
+What contract was derived?
+What Rust design was authorized?
+What implementation was produced?
+What exact commands executed?
+What actually happened?
+What evidence supports each observation?
+Which obligations were verified?
+Which gates passed?
+Who had authority for each transition?
+What exact scope does the certificate cover?
+If any answer is:
+"the agent said so"
+the vertical slice has failed.
+Only after MU-000001 is green should the system move to:
+MU-000002
+independent migration
+MU-000003
+shared semantic dependency
+MU-000004
+Then test orchestration.
+Only later:
+10 units
+100 units
+1000 units
+subsystem
+cross-subsystem migration
+The architecture should scale **the evidence discipline**, not merely the number of agents.
+RFL-AE-M0
+Protocol kernel executable
+Event sourcing deterministic
+Authorization enforced
+Evidence ledger connected
+Verification IR connected
+Gate engine connected
+MU-000001 end-to-end
+After that, the next major task is **not another IR**.
+It is to implement **KSIR v0.1 + the semantic reconstruction vertical slice**, feeding real C/compiler observations into MU-000001.
+That is where RFL-AE stops being a protocol framework and starts becoming an actual Linux-engineering system.
