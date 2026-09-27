@@ -23,8 +23,15 @@ non-self-validating release gate.
   provenance model, the 20-benchmark suite (C01–C10, R01–R05, V01–V05), anti-hallucination and
   contradiction benchmarks, tool authority levels T0–T6, agent separation, the migration
   manifest and commit protocol, subsystem QA (LOCK/RCU/MM/SCHED), and RFL-AE-LAB-001.
+- **[PROTOCOL.md](PROTOCOL.md)** (§109–§135) — the multi-agent execution protocol: message
+  envelope, capability-based authority and scope, task admission, the migration-unit state
+  machine and quarantine, conflict objects, knowledge-state separation, the canonical artifact
+  store, immutable event ledger and deterministic replay, execution receipts, agent topology
+  and the 63-agent taxonomy, worktree isolation, patch promotion, the readiness predicate, the
+  implementation-admission gate, data vs. control plane, and the L0–L13 v0.2 layer stack.
 
 ## Status
 
-`v0.0` — documentation only. Three specification documents (§1–§107); no Rust crates, JSON
-schemas, or executable benchmarks have been written yet.
+`v0.0` — documentation only. Four specification documents covering §1–§135 (§108 does not
+exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
+benchmarks have been written yet.

@@ -1205,3 +1205,10 @@ machine** — including message schemas, task admission, capability authorizatio
 replay, evidence recording, and the mechanism by which 10–100 specialized agents can work on
 the same kernel migration without turning the system into an uncontrolled multi-agent
 conversation.
+
+---
+
+**Done — see [PROTOCOL.md](PROTOCOL.md)** (§109–§135), which specifies the message envelope,
+capability-based authority, task admission, the migration-unit state machine and quarantine,
+conflict objects, the event ledger and deterministic replay, execution receipts, agent
+topology and taxonomy, and the L0–L13 v0.2 layer stack.
