@@ -1,0 +1,489 @@
+# Verbatim phrases from the KSIR-IMPL source (§1-§18 + closing clause).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+The architecture is now far enough along that another abstraction layer would add little value.
+KSIR executable against a real C fixture
+while keeping the protocol/evidence rules already frozen.
+The target is:
+C fixture
+compiler observations
+source observations
+CFG / call graph
+execution receipts
+ObservationBundle
+Reconciliation
+resolved
+conflict
+KSIR
+UNKNOWN
+CONTRACT
+blocking gates
+Do not attempt to model the whole kernel yet.
+The first implementation should support only:
+symbols
+functions
+types/layout
+calls
+execution context
+effects
+ownership
+lifetime
+locks
+callbacks
+refcount
+schema only initially
+architecture
+configuration
+provenance
+conflicts
+The important point is that **unsupported analysis must serialize as an explicit limitation**, not disappear.
+Start with `rfl-types`, then let `rfl-ksir` depend on it.
+crates/
+rfl-types/
+ids.rs
+digest.rs
+snapshot.rs
+variant.rs
+provenance.rs
+status.rs
+rfl-ksir/
+lib.rs
+symbol.rs
+function.rs
+object.rs
+pointer.rs
+ownership.rs
+lifetime.rs
+concurrency.rs
+context.rs
+effects.rs
+callback.rs
+refcount.rs
+abi.rs
+architecture.rs
+config.rs
+fact.rs
+unknown.rs
+conflict.rs
+graph.rs
+The central rule:
+pub struct SemanticFact<T> {
+pub fact_id: FactId,
+pub subject: SubjectId,
+pub value: T,
+pub epistemic: EpistemicStatus,
+pub validity: ValidityDomain,
+pub provenance: Provenance,
+pub enum EpistemicStatus {
+Observed,
+Derived,
+Hypothesis,
+Unknown,
+Do **not** put `Verified` here.
+Verification belongs downstream.
+This is important enough to make structural.
+pub struct UnknownFact {
+pub id: UnknownId,
+pub domain: UnknownDomain,
+pub reason: UnknownReason,
+pub severity: UnknownSeverity,
+pub provenance: Vec<ProvenanceRef>,
+pub enum UnknownDomain {
+Ownership,
+Lifetime,
+Aliasing,
+Synchronization,
+ExecutionContext,
+Sleepability,
+Allocation,
+CallbackReachability,
+Abi,
+Architecture,
+Configuration,
+InlineAssembly,
+GeneratedCode,
+FunctionPointerTarget,
+UserspacePointer,
+DmaLifetime,
+MmioSemantics,
+pub enum UnknownReason {
+UnsupportedConstruct,
+InsufficientEvidence,
+AnalysisFailure,
+ConditionalPathUnresolved,
+ExternalDefinitionUnavailable,
+GeneratedArtifactUnavailable,
+ArchitectureVariantUnavailable,
+IndirectCallUnresolved,
+ConflictingObservations,
+This gives the system something much stronger than:
+"ownership": null
+"domain": "Ownership",
+"reason": "IndirectCallUnresolved",
+"severity": "Critical"
+That is actionable.
+KSIR should **not directly trust analyzer output**.
+Introduce:
+Analyzer
+AnalysisObservation
+Reconciler
+SemanticFact
+Core structure:
+pub struct AnalysisObservation<T> {
+pub observation_id: ObservationId,
+pub snapshot: KernelSnapshotId,
+pub variant: BuildVariantId,
+pub fact_kind: FactKind,
+pub backend: BackendIdentity,
+pub algorithm: AlgorithmIdentity,
+pub execution: ExecutionReceiptId,
+pub epistemic: ObservationEpistemic,
+pub dependencies: Vec<ObservationId>,
+pub digest: Digest,
+The observation itself can say:
+OBSERVED
+but never:
+VERIFIED
+Every backend gets exactly the same basic contract.
+pub trait AnalysisBackend {
+fn identity(&self) -> BackendIdentity;
+fn analyze(
+request: AnalysisRequest,
+) -> Result<ObservationBundle, AnalysisError>;
+`AnalysisRequest` must include:
+pub struct AnalysisRequest {
+pub scope: AnalysisScope,
+pub inputs: Vec<ArtifactRef>,
+The backend cannot silently select:
+another kernel commit
+another `.config`
+another compiler
+another generated-header tree
+another architecture
+If it does, the evidence is invalid.
+Before AST extraction, create:
+Build Manifest
+It becomes the root of semantic evidence.
+pub struct BuildManifest {
+pub architecture: ArchitectureId,
+pub config_digest: Digest,
+pub compiler: ToolIdentity,
+pub linker: Option<ToolIdentity>,
+pub generated_headers: Vec<ArtifactRef>,
+pub generated_sources: Vec<ArtifactRef>,
+pub invocations: Vec<CommandRef>,
+pub environment: EnvironmentFingerprint,
+The critical invariant:
+No BuildManifest
+No authoritative compiler observation
+No VERIFIED semantic claim
+This prevents a surprisingly common failure mode: analyzing source from one tree while compiling another generated state.
+Do not begin with Smatch, Coccinelle, or an LLM.
+Begin with the compiler.
+The first vertical slice should acquire:
+source
+compiler frontend
+AST/type information
+function declarations
+struct declarations
+field layout
+For the fixture, the expected graph is roughly:
+lab_object
+refs
+lock
+value
+work
+lab_get
+refcount_inc
+lab_put
+refcount_dec
+lab_free
+lab_update
+spin_lock
+value =
+spin_unlock
+lab_schedule
+schedule_work
+lab_work
+container_of
+The initial backend does **not** need to solve every kernel macro.
+It needs to preserve uncertainty when it cannot.
+pub struct CallEdge {
+pub caller: FunctionId,
+pub target: CallTarget,
+pub kind: CallEdgeKind,
+pub enum CallTarget {
+Exact(FunctionId),
+Finite(Vec<FunctionId>),
+Conditional(Vec<ConditionalTarget>),
+This is preferable to pretending every indirect call can be resolved.
+The semantic lattice becomes:
+EXACT
+FINITE_SET
+CONDITIONAL_SET
+But these are **precision states**, not confidence scores.
+This should be the first real semantic analysis.
+Define:
+pub enum ExecutionContext {
+Process,
+SoftIrq,
+HardIrq,
+Nmi,
+Workqueue,
+Timer,
+Tasklet,
+RcuCallback,
+pub struct ContextFact {
+pub function: FunctionId,
+pub reachable_contexts: ContextSet,
+pub may_sleep: Sleepability,
+For `lab_work`:
+registration:
+schedule_work()
+workqueue dispatcher
+lab_work()
+Therefore:
+context = WORKQUEUE
+may_sleep = MAY_SLEEP
+That fact is derived from the callback graph rather than merely the function body.
+Represent effects explicitly:
+pub enum Effect {
+Allocates,
+Frees,
+Sleeps,
+AcquiresLock(LockId),
+ReleasesLock(LockId),
+RefAcquire(RefcountId),
+RefRelease(RefcountId),
+Publishes(ObjectId),
+Unpublishes(ObjectId),
+SchedulesCallback(CallbackId),
+CancelsCallback(CallbackId),
+EntersRcuRead,
+ExitsRcuRead,
+Then calculate:
+Direct effects
++ Callee effects
++ Callback effects
++ Context effects
+Effective function contract
+Example:
+direct:
+ref_acquire
+schedule_callback
+lock_acquire
+mutation
+lock_release
+ref_release
+possible_free
+Do not encode simplistic rules such as:
+list_add() = ownership transfer
+Instead collect evidence:
+allocation
+initialization
+publication
+reference acquisition
+callback registration
+callback completion
+reference release
+destruction
+For `lab_object` the expected preliminary model is:
+Object
+initial owner
+lab_schedule
+work callback
+requires object alive
+The important semantic question is:
+What prevents the callback from observing a freed object?
+If the analyzer cannot establish the answer:
+UNKNOWN:
+severity = Critical
+That should block migration.
+Represent accesses rather than only lock calls.
+pub struct ProtectedAccess {
+pub object: ObjectId,
+pub field: FieldId,
+pub operation: AccessKind,
+pub lock: LockId,
+pub protection: ProtectionStatus,
+Expected result:
+lab_object.value
+lab_update:
+WRITE
+lock = lab_object.lock
+PROTECTED
+lab_work:
+lock = ?
+PROTECTED / UNKNOWN
+If `lab_work` mutates `value` without the lock, that should be surfaced as:
+CONFLICT
+UNPROTECTED
+depending on the available evidence.
+The analyzer must not repair the source semantics by assumption.
+This is the point where multiple tools become useful.
+Suppose:
+Compiler:
+field offset = 16
+DWARF:
+Rust layout probe:
+field offset = 24
+The reconciler must produce:
+not:
+confidence = 0.91
+Formally:
+pub enum ReconciliationStatus {
+Consistent,
+ConditionallyConsistent,
+InsufficientEvidence,
+Conflicted,
+Invalidated,
+pub struct Conflict {
+pub conflict_id: ConflictId,
+pub observations: Vec<ObservationId>,
+pub status: ConflictStatus,
+pub reason: ConflictReason,
+No agent voting.
+No majority rule.
+No confidence aggregation.
+Only reconciled facts enter canonical KSIR.
+pub struct Ksir {
+pub variants: Vec<BuildVariantId>,
+pub symbols: Vec<SemanticFact<Symbol>>,
+pub functions: Vec<SemanticFact<Function>>,
+pub objects: Vec<SemanticFact<Object>>,
+pub ownership: Vec<SemanticFact<OwnershipFact>>,
+pub lifetimes: Vec<SemanticFact<LifetimeFact>>,
+pub concurrency: Vec<SemanticFact<ConcurrencyFact>>,
+pub contexts: Vec<SemanticFact<ContextFact>>,
+pub effects: Vec<SemanticFact<EffectFact>>,
+pub callbacks: Vec<SemanticFact<CallbackFact>>,
+pub abi: Vec<SemanticFact<AbiFact>>,
+pub architecture: Vec<SemanticFact<ArchitectureFact>>,
+pub unknowns: Vec<UnknownFact>,
+pub provenance: ProvenanceGraph,
+The KSIR is therefore not merely:
+AST + annotations
+It is:
+observations
+reconciled semantic facts
++ explicit unknowns
++ explicit conflicts
++ validity domains
++ provenance
+The first deterministic blocker rules should be deliberately small.
+UNKNOWN ownership
++ FFI crossing
+→ CRITICAL
+UNKNOWN lifetime
++ callback/async access
+UNKNOWN synchronization
++ mutable shared state
+UNKNOWN context
++ potentially sleeping operation
+UNKNOWN ABI
++ exported symbol
+The output becomes:
+"blockers": [
+"subject": "lab_object",
+"reason": "CallbackReachabilityUnresolved",
+The scheduler can then treat this as an evidence task.
+Build the fixture before building broad kernel support.
+fixtures/lab001/
+include/
+lab_object.h
+lab_object.c
+lib.rs
+lifecycle.c
+differential.rs
+expected/
+ksir.json
+contract.json
+obligations.json
+negative/
+missing_ref.rs
+double_put.rs
+use_after_free.rs
+lock_bypass.rs
+wrong_layout.rs
+wrong_callback_context.rs
+ffi_lifetime_violation.rs
+The expected KSIR should itself be treated as a **fixture specification**, not generated and blindly accepted as truth.
+The first KSIR gate should include at least:
+KSIR-001 Exact source snapshot is bound.
+KSIR-002 Exact build variant is bound.
+KSIR-003 Compiler invocation has an execution receipt.
+KSIR-004 Every canonical fact has provenance.
+KSIR-005 Unsupported constructs become UNKNOWN.
+KSIR-006 Analyzer failure cannot produce VERIFIED.
+KSIR-007 Unknown ownership is preserved.
+KSIR-008 Unknown lifetime is preserved.
+KSIR-009 Call graph preserves unresolved indirect calls.
+KSIR-010 Context propagation is deterministic.
+KSIR-011 Effect propagation is deterministic.
+KSIR-012 Conflicting observations produce CONFLICT.
+KSIR-013 Critical UNKNOWN produces a blocker.
+KSIR-014 Facts are variant-scoped.
+KSIR-015 Changing snapshot invalidates dependent KSIR.
+KSIR-016 Changing compiler identity invalidates compiler-derived evidence.
+KSIR-017 Changing generated headers changes the build-variant identity.
+KSIR-018 KSIR serialization is deterministic.
+KSIR-019 KSIR replay produces identical digest.
+KSIR-020 No LLM-generated assertion can enter canonical KSIR without provenance.
+That last one is particularly important.
+The real milestone should look like this:
+RFL-AE-LAB-001
+MU-000001
+exact Linux/C fixture snapshot
+BuildManifest
+authorized compiler execution
+ExecutionReceipt
+compiler observations
+UNKNOWN/CONFLICT
+Contract IR
+Rust Design IR
+Verification IR
+authorized execution
+Evidence
+Gates
+Migration Certificate
+And the certificate must be able to answer, mechanically:
+Which source?
+Which snapshot?
+Which configuration?
+Which compiler?
+Which command?
+Which observations?
+Which semantic facts?
+Which unknowns?
+Which conflicts?
+Which contract?
+Which design?
+Which implementation?
+Which exact tests?
+Which receipts?
+Which evidence?
+Which obligations were verified?
+Which authority performed verification?
+Which gates passed?
+What remains outside scope?
+If any answer is:
+"the agent said so"
+then **MU-000001 has not passed**.
+I would freeze the next sequence as:
+M0
+1. rfl-types
+2. rfl-ksir schema
+3. BuildManifest
+4. compiler execution backend
+5. ObservationBundle
+6. structural reconciliation
+7. context/effect reconstruction
+8. ownership/lifetime reconstruction
+9. lock/callback/refcount reconstruction
+10. UNKNOWN + CONFLICT extraction
+11. KSIR deterministic serialization
+12. KSIR QA corpus
+13. feed MU-000001
+**Do not implement RCU, DMA, full architecture analysis, or whole-kernel analysis yet.**
+The next concrete artifact should therefore be the **actual `rfl-types` + `rfl-ksir` crate skeleton and Rust schemas**, followed immediately by the `lab001` compiler-observation backend.
+That gives RFL-AE its first executable semantic core rather than another document describing one.

@@ -13,7 +13,8 @@ Guarantees enforced here:
   * every placeholder key resolves to a diagram file (no missing)
   * every diagram file is referenced (no orphans left on disk)
   * each key occurs exactly once
-  * AFTER substitution, each body occurs literally as  ```lang\\n<body>\\n```
+  * AFTER substitution, each body is the EXACT content of a fenced block that
+    carries a language (any language -- documents may mix ```text and ```json)
   * no ``@@...@@`` remains
 
 Exit 0 only when all of the above hold.
@@ -37,7 +38,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("target")
     ap.add_argument("diagdir")
-    ap.add_argument("--fence-lang", default="text")
+    ap.add_argument("--fence-lang", default="text",
+                    help="retained for compatibility; the fence assertion is "
+                         "now per-block and accepts any language")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
@@ -77,11 +80,29 @@ def main() -> int:
         out = out.replace(f"@@{k}@@", diags[k])
 
     # ---- the assertion that matters
-    escaped = [k for k in uniq
-               if f"```{a.fence_lang}\n{diags[k]}\n```" not in out]
+    #
+    # The original defect: a placeholder left OUTSIDE a fence renders as prose
+    # or as an unclassified code block, and every naive structural check still
+    # passes. So require each body to be the EXACT content of some fenced block
+    # that carries a language. This is language-agnostic -- a document may mix
+    # ```text diagrams with ```json records -- and strictly stronger than the
+    # old substring test against a single hardcoded --fence-lang.
+    blocks = re.findall(r"^```(\w*)\n(.*?)\n^```", out, re.S | re.M)
+    langs_by_body = {}
+    for lang, body in blocks:
+        langs_by_body.setdefault(body, []).append(lang)
+    escaped = []
+    for k in uniq:
+        langs = langs_by_body.get(diags[k])
+        if not langs:
+            escaped.append(f"{k} (not the exact content of any fenced block)")
+        elif not any(langs):
+            escaped.append(f"{k} (fenced but with no language)")
     leftover = re.findall(r"@@[A-Za-z0-9_]+@@", out)
     if escaped:
-        print(f"  - NOT inside a ```{a.fence_lang} fence after splicing: {escaped}")
+        print("  - NOT inside a classified fence after splicing:")
+        for e in escaped:
+            print(f"      {e}")
     if leftover:
         print(f"  - unresolved placeholders remain: {leftover}")
     if escaped or leftover:
@@ -91,13 +112,13 @@ def main() -> int:
     with open(a.target, "w", encoding="utf-8") as fh:
         fh.write(out)
 
-    blocks = re.findall(r"^```(\w*)\n(.*?)\n^```", out, re.S | re.M)
     gen = {diags[k] for k in uniq}
     in_fence = sum(1 for _l, b in blocks if b in gen)
     unclass = sum(1 for l, _b in blocks if not l)
+    langset = sorted({l for l, _b in blocks if l})
     print(f"spliced       : {len(uniq)} diagrams")
     print(f"fenced blocks : {len(blocks)} total, {in_fence} are generated diagrams, "
-          f"{len(blocks) - in_fence} are source text")
+          f"{len(blocks) - in_fence} are source text; langs={langset}")
     print(f"unclassified  : {unclass} (fences with no language)")
     if unclass:
         print("WARNING: unclassified fences exist -- audit will fail on these")

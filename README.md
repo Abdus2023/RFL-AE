@@ -194,6 +194,23 @@ non-self-validating release gate.
   proof-carrying `MU-000001` manifest, two state machines that must not be merged, and the
   thirteen questions the unit must answer mechanically — if any answer is *"the agent said so"*,
   the vertical slice has failed. Same provenance convention as `VERIFICATION.md`.
+- **[KSIR-IMPL.md](KSIR-IMPL.md)** (§641–§659, source §§1–§18 plus the unnumbered
+  *implementation order* clause) — making KSIR **executable against a real C fixture** rather
+  than adding another abstraction layer. The frozen v0.1 domain table, in which *unsupported
+  analysis must serialize as an explicit limitation, not disappear*; `rfl-types` + `rfl-ksir`
+  with `SemanticFact<T>` and an `EpistemicStatus` that deliberately has **no `Verified`
+  variant**; `UnknownFact` carrying domain, reason and severity so `UNKNOWN` is actionable
+  rather than `null`; an observation layer that refuses to trust analyzer output; the uniform
+  `AnalysisBackend` contract that forbids silently selecting another kernel commit, `.config`,
+  compiler, header tree or architecture; `BuildManifest` as the root of semantic evidence —
+  `No BuildManifest ↓ No authoritative compiler observation ↓ No VERIFIED semantic claim`; the
+  compiler-native first backend; `CallTarget` as a **precision lattice, not a confidence
+  score**; context and effect reconstruction; ownership and lock reconstruction that must
+  surface `CONFLICT` or `UNPROTECTED` rather than repair source semantics by assumption;
+  reconciliation with **no agent voting, no majority rule, no confidence aggregation**; KSIR
+  synthesis; critical-unknown blocker extraction; the `lab001` corpus treated as a fixture
+  specification; acceptance gates `KSIR-001…020`; the end-to-end execution chain; and the fixed
+  M0 implementation order. Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -221,7 +238,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§640 numbering. Every checkable
+a specification, so it sits outside the §1–§659 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -231,6 +248,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Eighteen specification documents covering §1–§640 (§108 does not
+`v0.0` — documentation only. Nineteen specification documents covering §1–§659 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

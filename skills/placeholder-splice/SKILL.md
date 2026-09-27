@@ -37,7 +37,8 @@ python3 skills/placeholder-splice/scripts/splice.py DOC.md diagrams/ --dry-run
 python3 skills/placeholder-splice/scripts/splice.py DOC.md diagrams/
 ```
 
-`--fence-lang` defaults to `text`.
+`--fence-lang` is retained for compatibility but no longer drives the assertion,
+which is now per-block and language-agnostic.
 
 ## What it guarantees
 
@@ -46,12 +47,17 @@ The script refuses to write unless all of these hold:
 1. every `@@KEY@@` in the document has a matching diagram file;
 2. every diagram file is referenced (nothing orphaned on disk);
 3. each key occurs **exactly once**;
-4. **after** substitution, each body occurs literally as
-   `` ```text\n<body>\n``` ``;
+4. **after** substitution, each body is the *exact content* of a fenced block
+   that carries a language — any language, since a document may mix ```` ```text ````
+   diagrams with ```` ```json ```` records;
 5. no `@@…@@` remains;
 6. no fenced block is left without a language.
 
-Guarantee 4 is the one that matters.
+Guarantee 4 is the one that matters. It used to test for `` ```text\n<body>\n``` ``
+against a single hardcoded language, which wrongly rejected a document that fenced
+three JSON records as ```` ```json ````. The current form is both language-agnostic
+and stricter: it requires a whole-block match rather than a substring, so a body
+that merely *appears* somewhere inside a larger block no longer passes.
 
 ## Traps
 

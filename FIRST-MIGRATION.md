@@ -1194,3 +1194,23 @@ After that, the next major task is **not another IR**.
 It is to implement **KSIR v0.1 + the semantic reconstruction vertical slice**, feeding real C/compiler observations into MU-000001.
 
 That is where RFL-AE stops being a protocol framework and starts becoming an actual Linux-engineering system.
+
+---
+
+**Done — see [KSIR-IMPL.md](KSIR-IMPL.md)** (§641–§659, source §§1–§18 plus the unnumbered
+*The implementation order is now fixed*), which makes KSIR executable against a real C fixture
+instead of adding another abstraction layer: the frozen v0.1 domain table in which **unsupported
+analysis must serialize as an explicit limitation**, `rfl-types` and `rfl-ksir` with
+`SemanticFact<T>` and an `EpistemicStatus` that deliberately has no `Verified` variant,
+`UnknownFact` carrying a domain, reason and severity so `UNKNOWN` is actionable rather than
+`null`, the observation layer that refuses to trust analyzer output, the uniform
+`AnalysisBackend` contract that forbids silently selecting another commit, `.config`, compiler,
+header tree or architecture, `BuildManifest` as the root of semantic evidence with
+`No BuildManifest ↓ No authoritative compiler observation ↓ No VERIFIED semantic claim`, the
+compiler-native first backend, `CallTarget` as a precision lattice rather than a confidence
+score, context and effect reconstruction, ownership and lock reconstruction that must surface
+`CONFLICT` or `UNPROTECTED` instead of repairing source semantics by assumption, reconciliation
+with **no agent voting, no majority rule, no confidence aggregation**, KSIR synthesis,
+critical-unknown blocker extraction, the `lab001` corpus treated as a fixture specification,
+acceptance gates `KSIR-001…020`, the end-to-end execution chain, and the fixed M0 implementation
+order. Same provenance convention as `VERIFICATION.md`.

@@ -81,9 +81,9 @@ python3 skills/spec-turn-closeout/scripts/verify_closeout.py \
     --new ORCHESTRATION.md --prev EXECUTION.md
 ```
 
-Expected: `CLOSE-OUT OK`, exit 0, with `documents : 18`, `corpus max section:
-640`, forward link `yes`, README bullet `yes`, and status
-`Eighteen specification documents covering §1–§640`.
+Expected: `CLOSE-OUT OK`, exit 0, with `documents : 19`, `corpus max section:
+659`, forward link `yes`, README bullet `yes`, and status
+`Nineteen specification documents covering §1–§659`.
 
 Negative tests — each must exit 1:
 
