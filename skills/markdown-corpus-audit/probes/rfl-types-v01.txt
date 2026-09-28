@@ -1,0 +1,433 @@
+# Verbatim phrases from the RFL-TYPES-V01 source (§1-§20 plus the unnumbered
+# closing section, recorded as §21). One phrase per line, transcribed from the
+# pasted SOURCE, not from the generated file. Used by audit_file.py --probes.
+The next step is to freeze the **first executable API contract**, beginning with `rfl-types v0.1`. No new architectural layer is needed.
+The crate should be deliberately boring. It contains **domain vocabulary and invariants**, not transition logic, persistence, cryptography orchestration, or policy evaluation.
+├── identifiers
+├── digest
+├── epoch
+├── scope
+├── operation
+├── authorization
+├── task
+├── artifact
+├── evidence
+├── contract
+├── gate
+└── error
+Dependency rule:
+├── no rfl-transition
+├── no rfl-ledger
+├── no rfl-evidence
+├── no rfl-gates
+└── no filesystem/network/LLM/runtime authority
+This keeps the bottom of the dependency graph stable.
+Every protocol identity gets its own newtype.
+pub struct TaskId(pub Uuid);
+pub struct AgentId(pub Uuid);
+pub struct ArtifactId(pub Uuid);
+pub struct EvidenceId(pub Uuid);
+pub struct ContractId(pub Uuid);
+pub struct GateId(pub Uuid);
+pub struct AuthorizationId(pub Uuid);
+pub struct EventId(pub Uuid);
+pub struct RequestId(pub Uuid);
+pub struct MigrationUnitId(pub Uuid);
+pub struct SemanticModelId(pub Uuid);
+pub struct RustDesignId(pub Uuid);
+pub struct DesignElementId(pub Uuid);
+pub struct ObligationId(pub Uuid);
+pub struct GenerationId(pub Uuid);
+pub struct AttemptId(pub Uuid);
+pub struct CertificateId(pub Uuid);
+pub struct ExecutionId(pub Uuid);
+pub struct ExecutorId(pub Uuid);
+pub struct CapabilityId(pub Uuid);
+pub struct BranchId(pub Uuid);
+The important invariant is:
+TaskId ≠ ArtifactId ≠ EvidenceId
+even though they may use the same underlying representation.
+This prevents accidental API interchange.
+Bad:
+fn verify(id: Uuid) { ... }
+Good:
+fn verify(
+artifact: ArtifactId,
+contract: ContractId,
+evidence: &[EvidenceId],
+) { ... }
+Do not use a naked `[u8; 32]`.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DigestAlgorithm {
+Sha256,
+pub struct Digest {
+pub algorithm: DigestAlgorithm,
+pub bytes: [u8; 32],
+Canonical textual form:
+sha256:<64 lowercase hexadecimal characters>
+sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+The canonical representation must have exactly one serialization.
+No:
+SHA256(...)
+sha256(...)
+sha-256:...
+as protocol identities.
+The epoch is one of the most important anti-staleness mechanisms.
+pub struct Epoch {
+pub kernel: KernelSnapshotId,
+pub specification: Digest,
+pub protocol: Digest,
+pub generation: u64,
+Canonical equality:
+Epoch(a) == Epoch(b) iff
+a.kernel         == b.kernel
+∧ a.specification == b.specification
+∧ a.protocol      == b.protocol
+∧ a.generation    == b.generation
+Do not provide a partial epoch comparison such as:
+same_protocol()
+same_kernel()
+and then accidentally treat that as authorization compatibility.
+Compatibility should be explicit:
+pub fn same_epoch(a: &Epoch, b: &Epoch) -> bool {
+a == b
+The protocol should reject:
+request.epoch != authoritative_epoch
+before execution.
+This resolves the earlier `SnapshotId` ambiguity.
+pub struct KernelSnapshotId(pub Digest);
+and eliminate generic `SnapshotId` from the normative vocabulary.
+A kernel snapshot is therefore not merely:
+"linux-7.x"
+but an identity bound to an actual snapshot digest.
+KernelSnapshotId(
+sha256:<commit/tree identity>
+The exact snapshot hashing scheme belongs to the source-identity specification, not to `rfl-types`.
+Operations are closed.
+pub enum OperationKind {
+Observe,
+Extract,
+Analyze,
+Propose,
+Generate,
+Modify,
+Execute,
+Verify,
+Review,
+Do not permit arbitrary strings:
+operation: String
+because then the authorization layer cannot establish a closed-world security property.
+Capability:
+pub struct Capability {
+pub id: CapabilityId,
+pub operation: OperationKind,
+pub scope: Scope,
+Avoid:
+pub struct Scope {
+pub value: String,
+Instead:
+pub repository: Option<RepositoryScope>,
+pub paths: Vec<PathScope>,
+pub architectures: Vec<Architecture>,
+pub configurations: Vec<ConfigIdentity>,
+The exact fields can evolve, but the key principle is:
+scope is data not prose
+A path scope should not be able to silently mean an architecture scope.
+repository = linux
+paths       = drivers/foo/**
+architecture = x86_64
+configuration = CONFIG_FOO
+is machine-checkable.
+pub struct Authorization {
+pub id: AuthorizationId,
+pub epoch: Epoch,
+pub actor: AgentId,
+pub task: TaskId,
+pub capability: CapabilityId,
+pub expires_at: Timestamp,
+But authorization validity must also include revocation.
+Therefore the authorization object itself should **not** contain a mutable:
+valid: bool
+Authorization
++ AuthorizationState
+authorization validity
+pub enum AuthorizationState {
+Active,
+Revoked {
+event: EventId,
+This preserves historical truth.
+A previously valid authorization remains historically valid for an event that occurred while it was active.
+pub struct OperationRequest {
+pub request_id: RequestId,
+pub operation: OperationKind,
+pub target: Target,
+pub authorization: AuthorizationId,
+`Target` is closed:
+pub enum Target {
+Source(SourceRegion),
+MigrationUnit(MigrationUnitId),
+Artifact(ArtifactId),
+Contract(ContractId),
+Evidence(EvidenceId),
+Gate(GateId),
+Task(TaskId),
+This is preferable to:
+target: String
+because:
+"kernel/foo.c"
+cannot accidentally be interpreted as an artifact ID.
+pub enum TaskState {
+Created,
+Admitted,
+Authorized,
+Executing,
+Succeeded,
+Failed,
+Verified,
+Gated,
+Certified,
+But the critical design rule remains:
+**do not encode retries by moving backwards.**
+pub struct TaskAttempt {
+pub id: AttemptId,
+pub sequence: u64,
+pub state: AttemptState,
+Thus:
+Task
+├── Attempt 0 → Failed
+├── Attempt 1 → Failed
+└── Attempt 2 → Succeeded
+rather than:
+Executing
+The latter destroys useful historical semantics.
+These must remain separate.
+### Gate
+pub enum GateStatus {
+Pass,
+Fail,
+Blocked,
+NotApplicable,
+Invalidated,
+### Verification
+pub enum VerificationStatus {
+PartiallyVerified,
+### Evidence validity
+Do not overload epistemic status with validity.
+Use two axes:
+pub enum EvidenceKind {
+Observed,
+Derived,
+Hypothesis,
+pub enum EvidenceValidity {
+Unvalidated,
+Valid,
+Invalid,
+Superseded,
+This prevents a particularly dangerous semantic collapse:
+"Observed" ≠ "Valid"
+Something can genuinely be observed and subsequently determined to be invalid evidence.
+The protocol needs stable machine-readable rejection reasons.
+pub enum RejectionReason {
+UnknownTask,
+UnknownActor,
+UnknownAuthorization,
+EpochMismatch,
+SnapshotMismatch,
+SpecificationMismatch,
+ProtocolMismatch,
+AuthorizationExpired,
+AuthorizationRevoked,
+CapabilityMissing,
+ScopeViolation,
+InvalidTaskState,
+InvalidTransition,
+ArtifactMissing,
+ArtifactMismatch,
+EvidenceMissing,
+EvidenceUnbound,
+SelfVerification,
+DuplicateOperation,
+ReplayConflict,
+GateFailure,
+GateBlocked,
+DependencyInvalidated,
+PolicyDenied,
+Do not initially expose free-form strings as the authoritative reason.
+A human-readable explanation can accompany the enum:
+pub struct Rejection {
+pub reason: RejectionReason,
+pub explanation: Option<String>,
+But the enum is normative.
+This is a critical freeze point.
+RFL-AE should not rely on:
+#[derive(Serialize)]
+alone as its canonical identity mechanism.
+For every hash-bearing object define:
+CanonicalEncode(T) → bytes
+Digest(T) = SHA256(CanonicalEncode(T))
+The canonical encoding should be deterministic.
+A suitable initial rule:
+RFC 8785 JCS
+for JSON-compatible protocol objects.
+However, there is an important restriction:
+**JCS should not become the semantic model itself.**
+The layers remain:
+Rust object
+canonical structured representation
+canonical bytes
+digest
+Serialization is representation.
+It is not semantics.
+The crate should test these directly.
+### ID isolation
+#[test]
+fn ids_are_distinct_types() { ... }
+### Digest canonicality
+fn digest_serialization_is_canonical() { ... }
+### Epoch equality
+fn epoch_changes_when_any_component_changes() { ... }
+Four mutation tests:
+kernel changes       → epoch changes
+specification changes → epoch changes
+protocol changes      → epoch changes
+generation changes    → epoch changes
+### Gate distinction
+fn fail_is_not_blocked() { ... }
+fn blocked_is_not_fail() { ... }
+### Evidence distinction
+fn observed_does_not_mean_valid() { ... }
+The first executable property should be:
+P1: No stale request can become an accepted transition.
+Formally:
+request.epoch ≠ state.epoch
+⇒ δ(state, request) = Reject(EpochMismatch)
+No exception for:
+"same repository"
+"same source"
+"same agent"
+"same task"
+Epoch mismatch is sufficient for rejection.
+Once `rfl-types` is frozen, `rfl-transition` becomes the first **authority-bearing** crate.
+Its API should be approximately:
+pub trait TransitionEngine {
+fn apply(
+&self,
+state: &State,
+request: &OperationRequest,
+context: &TransitionContext,
+) -> TransitionResult;
+Result:
+pub enum TransitionResult {
+Accepted {
+state: StateDigest,
+Rejected {
+rejection: Rejection,
+The important property:
+apply()
+does not modify state.
+It computes a transition.
+State mutation belongs to the caller after acceptance, or to an explicitly transactional state machine.
+That makes testing substantially easier.
+Evaluation order should be deterministic.
+1. request identity
+2. task existence
+3. epoch
+4. snapshot
+5. authorization existence
+6. authorization epoch
+7. authorization actor
+8. authorization task
+9. capability
+10. scope
+11. expiry/revocation
+12. task state
+13. dependencies
+14. duplicate/replay
+15. operation-specific predicates
+This matters because a nondeterministic rejection order creates nondeterministic protocol behavior.
+The first frozen table should be this small:
+Current
+Operation
+Result
+Created
+Admit
+Authorize
+Execute
+Complete
+Verify
+Gate
+Certify
+Everything else:
+Reject(InvalidTransition)
+No implicit transitions.
+No automatic:
+Succeeded → Certified
+BuildPassed → Verified
+Those relationships belong to later verification/gate semantics.
+These become mandatory conformance tests rather than documentation examples.
+A01 stale epoch
+A02 snapshot mismatch
+A03 specification mismatch
+A04 expired authorization
+A05 revoked authorization
+A06 missing capability
+A07 scope escape
+A08 invalid transition
+A09 duplicate request
+A10 forged artifact
+A11 unbound evidence
+A12 self-verification
+A13 event tampering
+A14 replay divergence
+A15 failed required gate
+A16 blocked required gate
+A17 invalidated dependency
+A18 valid complete execution
+The test suite should explicitly assert both:
+expected result + expected rejection reason
+assert_eq!(
+engine.apply(&state, &request, &ctx),
+TransitionResult::Rejected {
+rejection: Rejection {
+reason: RejectionReason::EpochMismatch,
+Not merely:
+assert!(result.is_err());
+The latter would allow unrelated failures to masquerade as security enforcement.
+Before touching actual Linux migration semantics, establish this synthetic scenario:
+Task T1
+├── MigrationUnit M1
+├── Artifact A1
+└── Contract C1
+Epoch E1
+Authorize Agent A1
+Generate Artifact A1
+Execute Build
+Evidence EVID1
+Gate G1 = Pass
+Certificate C1
+And separately prove:
+E1 → request E2
+is rejected.
+valid evidence + failed gate
+must **not** produce a certificate.
+all technical gates pass
+must still not manufacture:
+UpstreamAcceptance = Accepted
+The implementation freeze point
+At this point the architecture has crossed an important boundary:
+CONCEPTUAL
+──────────
+architecture
+semantic model
+trust model
+verification model
+FREEZE
+EXECUTABLE
+rfl-types
+rfl-transition
+rfl-ledger
+rfl-evidence
+rfl-gates
+CONFORMANCE
+FIRST REAL MIGRATION UNIT
+The next artifact should therefore be the **normative `rfl-types v0.1` source-level specification**: exact Rust declarations, derives, visibility, dependency policy, canonical serialization rules, constructor invariants, and the complete unit-test matrix. After that, `rfl-transition` can be specified against a frozen type surface rather than continuing to move underneath it.

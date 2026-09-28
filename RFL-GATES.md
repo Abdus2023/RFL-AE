@@ -1167,3 +1167,18 @@ RUST
 The next work should therefore be **implementation and conformance**, not another 50-section conceptual layer.
 
 The immediate target is a frozen **`rfl-types v0.1` API + `rfl-transition v0.1` transition table + `rfl-ledger v0.1` replay model + `rfl-evidence v0.1` binding rules + `rfl-gates v0.1` certification predicate**, followed by the first end-to-end MigrationUnit and adversarial test suite.
+
+---
+
+**Done — see [RFL-TYPES-V01.md](RFL-TYPES-V01.md)** (§926–§946, source §§1–§20 plus the unnumbered
+closing section — the author restarted the numbering at §1, so the offset is +925), which acts on
+this document's conclusion and freezes the **first executable API contract**, beginning with
+`rfl-types v0.1`: a deliberately boring crate of domain vocabulary and invariants; one newtype per
+protocol identity; a canonical `sha256:` digest; a four-part epoch with all-or-nothing equality;
+`KernelSnapshotId` replacing `SnapshotId`; a closed operation algebra and structured scope;
+authorization with revocation state instead of a `valid` flag; closed request targets; retries as
+attempts rather than backward moves; separate status axes; a stable rejection taxonomy; canonical
+serialization (RFC 8785 JCS) kept apart from semantics; the `rfl-types` invariant tests; property
+P1; the `rfl-transition v0.1` engine, precondition order and eight-row transition table; attacks
+A01–A18; a first synthetic conformance scenario; and the implementation freeze point. Same
+provenance convention as `VERIFICATION.md`.
