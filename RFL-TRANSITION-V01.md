@@ -1037,3 +1037,18 @@ What exactly makes a historical event authoritative, and how do we prove that re
 ```
 
 That should be the next layer we freeze.
+
+---
+
+**Done — see [RFL-LEDGER-V01.md](RFL-LEDGER-V01.md)** (§970–§998, source §§1–§28 plus the
+unnumbered closing section as §29 — the author restarted at §1 again, so the offset is +969),
+*`rfl-ledger v0.1` — historical authority and replay*, which answers the question this document
+closes on: the ledger stores history and replay derives authoritative state from it, stored state
+being only a cache. It freezes the event anatomy (`Event` versus the hashed `EventCore`), event
+identity versus event digest, an explicit genesis, the chain invariant, structural / semantic /
+replay validation, the `Ledger` API and its atomic append protocol, replay that never trusts
+`resulting_state`, historical context and replay purity, forks versus corruption, duplicate events
+versus request replay, the tamper matrix, the `LedgerError` taxonomy, immutable history and
+invalidation, state projection and digest, the replay-equivalence property, the adversarial suite
+L01–L18, and the explicit `history → state` trust chain. Same provenance convention as
+`VERIFICATION.md`.

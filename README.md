@@ -409,6 +409,16 @@ non-self-validating release gate.
   idempotency; operation policies; replay and the historical-time rule; invariants T1–T10;
   property-based tests; and `rfl-ledger` as the next hard point. Same provenance convention as
   `VERIFICATION.md`.
+- **[RFL-LEDGER-V01.md](RFL-LEDGER-V01.md)** (§970–§998, source §§1–§28 plus the unnumbered
+  closing section as §29 — the author restarted at §1, so the offset is +969) — *`rfl-ledger v0.1`
+  — historical authority and replay*: the ledger stores history, replay derives authoritative state,
+  and stored state is only a cache; `Event` versus the hashed `EventCore`; event identity versus
+  digest; explicit genesis; the chain invariant; structural, semantic and replay validation; the
+  `Ledger` API and atomic append; replay that never trusts `resulting_state`; historical context
+  and replay purity; forks versus corruption; duplicates versus request replay; the tamper matrix;
+  the `LedgerError` taxonomy; immutable history and invalidation; state projection; the adversarial
+  suite L01–L18; the `history → state` trust chain; and `rfl-evidence v0.1` as the next layer.
+  Same provenance convention as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -436,7 +446,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§969 numbering. Every checkable
+a specification, so it sits outside the §1–§998 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -446,6 +456,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Thirty-two specification documents covering §1–§969 (§108 does not
+`v0.0` — documentation only. Thirty-three specification documents covering §1–§998 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

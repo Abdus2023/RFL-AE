@@ -1,0 +1,434 @@
+# Verbatim phrases from the RFL-LEDGER-V01 source (§1-§28, the unnumbered
+# introduction and the unnumbered closing "Next" section). One phrase per line,
+# transcribed from the pasted SOURCE, not from the generated file.
+# Lines that begin with `#` in the source are escaped as `\#`.
+\# `rfl-ledger v0.1` — historical authority and replay
+The ledger is the next critical boundary because it turns accepted transitions into **auditable protocol history**.
+The central rule:
+The ledger stores history; replay derives authoritative state from history. Stored state is a cache, not the source of truth.
+crates/rfl-ledger/
+├── Cargo.toml
+└── src/
+├── lib.rs
+├── event.rs
+├── event_core.rs
+├── ledger.rs
+├── append.rs
+├── validation.rs
+├── replay.rs
+├── digest.rs
+├── fork.rs
+└── tests/
+├── genesis.rs
+├── ordering.rs
+├── tamper.rs
+├── duplicate.rs
+└── adversarial.rs
+Dependency direction:
+rfl-ledger
+├── rfl-types
+└── rfl-transition
+It must not depend on:
+rfl-evidence
+rfl-gates
+KSIR
+Rust-generation logic
+LLM infrastructure
+Separate the event's semantic content from its digest.
+pub struct Event {
+pub id: EventId,
+pub sequence: u64,
+pub epoch: Epoch,
+pub actor: AgentId,
+pub task: TaskId,
+pub request: RequestId,
+pub operation: OperationKind,
+pub previous_event: Option<EventId>,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+pub event_digest: Digest,
+But `event_digest` must **not** be included in the material being hashed.
+Therefore:
+pub struct EventCore {
+EventDigest
+= SHA256(
+CanonicalEncode(EventCore)
+This prevents recursive hashing.
+Do not collapse:
+EventId
+They answer different questions.
+= identity/reference
+= content integrity
+Thus:
+same EventId + different EventCore
+is detectable.
+Likewise:
+different EventId + same EventCore
+is technically possible unless the protocol explicitly prohibits duplicate semantic events.
+That decision belongs to duplicate-event policy, not cryptographic identity.
+The ledger must have an explicit genesis event/state.
+Do not infer genesis from:
+sequence == 0
+alone.
+Define:
+pub struct Genesis {
+pub event: Event,
+pub initial_state: Digest,
+Genesis invariants:
+sequence = 0
+previous_event = None
+previous_state = initial_state
+genesis is immutable
+A ledger with no explicit genesis is not replay-complete.
+For every event after genesis:
+E[n].sequence = E[n-1].sequence + 1
+E[n].previous_event = E[n-1].id
+E[n].previous_state = E[n-1].resulting_state
+↓ previous_event
+A modification to any link must become observable.
+Consider:
+E0 → E1 → E2
+An attacker modifies `E1`.
+The chain detects that:
+E2.previous_state
+may no longer match.
+But there are actually **three independent integrity questions**:
+1. Is the event content intact?
+2. Is the event connected to the expected predecessor?
+3. Does replay of the event produce the claimed resulting state?
+Therefore RFL-AE needs three validation layers.
+STRUCTURAL_VALID
+SEMANTIC_VALID
+REPLAY_VALID
+\### Structural
+Checks:
+digest
+previous_event
+field presence
+epoch consistency
+\### Semantic
+operation legal
+actor/task relation
+transition legal
+authorization relation
+\### Replay
+Actually reconstruct:
+↓ E0
+↓ E1
+and compare the derived state with the claimed state.
+Only replay validation establishes:
+history ⇒ state
+rather than merely:
+history appears internally consistent
+The minimal API:
+pub trait Ledger {
+fn append(&mut self, event: Event) -> Result<(), LedgerError>;
+fn get(&self, id: EventId) -> Option<&Event>;
+fn head(&self) -> Option<&Event>;
+fn iter(&self) -> impl Iterator<Item = &Event>;
+fn validate(&self) -> Result<(), LedgerError>;
+fn replay(&self) -> Result<State, ReplayError>;
+But one important restriction:
+`append()` must never simply push into a vector.
+It must validate the event against the current head.
+For a non-genesis event:
+candidate
+validate EventCore digest
+validate sequence
+validate previous_event
+validate previous_state
+validate epoch
+validate semantic transition
+Any failure:
+append(candidate) = Err(...)
+ledger remains unchanged
+This gives the ledger atomicity at the logical level.
+This is a mandatory invariant:
+append(E) = Err ⇒ LedgerAfter == LedgerBefore
+No partial append.
+No:
+event inserted then validation failed
+No mutation before validation completes.
+This is probably the most important ledger rule.
+Incorrect:
+fn replay(&self) -> State {
+self.head().unwrap().resulting_state
+That merely trusts the event.
+Correct conceptually:
+initial state
+apply E0
+derived state 1
+apply E1
+derived state 2
+At each step:
+digest(derived_state)
+== event.resulting_state
+If not:
+ReplayDivergence
+The replay engine must not consult current mutable authority.
+Bad:
+replay()
+current authorization database
+because current authorization state can differ from historical state.
+Instead the event/history must provide the inputs required for historical reconstruction.
+Conceptually:
+pub struct HistoricalTransitionContext {
+pub event_time: Timestamp,
+pub authorization_snapshot: AuthorizationSnapshot,
+pub dependency_snapshot: DependencySnapshot,
+The exact serialization of these snapshots can be refined, but the principle is fixed:
+replay(H) must depend only on H + immutable protocol rules
+not on current external state.
+For a fixed history `H`:
+Replay(H)
+must not depend on:
+current_time
+randomness
+network
+filesystem
+LLM output
+environment variables
+current authorization
+current Git branch
+current CI state
+Replay(H) = deterministic function
+This is what makes historical verification meaningful.
+A linear ledger:
+E0 → E1 → E2 → E3
+A fork:
+E2a
+E2b
+Do not silently choose one.
+Represent:
+pub enum HistoryStatus {
+Linear,
+Forked,
+Corrupt,
+And:
+pub struct Branch {
+pub id: BranchId,
+pub head: EventId,
+For v0.1, the safest rule is:
+fork detected → ledger not certifiable
+No automatic merge.
+These must remain distinct.
+\### Fork
+Two internally valid successors exist:
+E1 → E2a
+E1 → E2b
+This may be legitimate branching.
+\### Corruption
+An event violates integrity:
+E2.previous_event != E1.id
+digest(E2.core) != E2.event_digest
+replay(E2) != E2.resulting_state
+Forked ≠ Corrupt
+But both should prevent a linear certification path unless an explicit branch-selection policy exists.
+There are several different duplicate cases.
+\### Exact duplicate
+same EventId
+same EventCore
+same digest
+This should be idempotently recognized where appropriate.
+\### Same ID, changed content
+different EventCore
+→ integrity failure.
+\### Different ID, same semantic operation
+Potentially valid or potentially duplicate depending on protocol semantics.
+Do not automatically equate:
+same operation
+with:
+same event
+because two legitimate attempts can perform the same operation.
+This is different from event duplication.
+Suppose:
+Request R1
+is submitted twice.
+If the digest is identical:
+R1 + digest(D)
+the second submission should return the historical result.
+But:
+R1 + digest(D1)
+R1 + digest(D2)
+must produce:
+ReplayConflict
+This prevents request identity from becoming mutable.
+The ledger's adversarial tests should deliberately modify one field at a time.
+Mutation
+Expected result
+event content
+`DigestMismatch`
+event digest
+`SequenceViolation`
+previous event
+`HistoryLinkMismatch`
+previous state
+`StateChainMismatch`
+resulting state
+`ReplayDivergence`
+event order
+duplicate event
+`DuplicateEvent`
+conflicting request
+`ReplayConflict`
+two successors
+`ForkDetected`
+This is much stronger than merely testing that “tampering fails.”
+Freeze a dedicated taxonomy:
+pub enum LedgerError {
+GenesisMissing,
+GenesisInvalid,
+DigestMismatch,
+SequenceViolation,
+HistoryLinkMismatch,
+StateChainMismatch,
+DuplicateEvent,
+ReplayConflict,
+EpochMismatch,
+SemanticViolation,
+ForkDetected,
+CorruptHistory,
+ReplayDivergence,
+Replay errors can remain separate if useful:
+pub enum ReplayError {
+InvalidHistory(LedgerError),
+UnknownTransition,
+MissingHistoricalContext,
+StateMismatch,
+Do not turn every failure into:
+InvalidLedger
+because diagnosis is part of the evidence architecture.
+Corrections must never modify an old event.
+E17
+contains a mistaken claim.
+Do not:
+edit E17
+Instead:
+E18 = Correction / Invalidation / Supersession
+history = what happened
+while:
+current state = what is currently authoritative
+This preserves both.
+A particularly important case:
+E50 → evidence accepted
+E51 → later evidence invalidated
+Do not rewrite E50.
+Record:
+E51 = Invalidate(E50)
+Replay therefore reconstructs:
+historically:
+E50 existed and was accepted
+currently:
+E50 is invalidated
+That distinction will later become essential for `rfl-evidence` and `rfl-gates`.
+The ledger should never hash an arbitrary Rust debug representation.
+StateDigest
+CanonicalEncode(StateProjection)
+where `StateProjection` contains only authoritative protocol state.
+Do not accidentally include:
+HashMap iteration order
+memory addresses
+timestamps not semantically relevant
+debug metadata
+filesystem paths
+process IDs
+Canonical state encoding is therefore another release-gate requirement.
+A useful separation is:
+Full runtime state
+Authoritative State Projection
+Canonical encoding
+The projection answers:
+Which facts determine protocol state?
+Not:
+What happens to be stored in the implementation?
+This avoids implementation details becoming accidental protocol semantics.
+The strongest v0.1 ledger property:
+Given valid history H:
+append(H)
+replay(H)
+and every event Ei contains digest(Si)
+Then:
+digest(Si) == Ei.resulting_state
+for every event.
+Therefore a forged `resulting_state` cannot survive replay.
+The minimum ledger suite should contain:
+L01 valid genesis
+L02 invalid genesis
+L03 valid append
+L04 invalid digest
+L05 sequence gap
+L06 sequence rewind
+L07 previous-event corruption
+L08 previous-state corruption
+L09 resulting-state forgery
+L10 reordered history
+L11 duplicate event
+L12 conflicting request
+L13 fork
+L14 replay divergence
+L15 historical authorization expiration
+L16 historical authorization revocation
+L17 invalidation event
+L18 failed append atomicity
+And one particularly important metamorphic test:
+Take valid H.
+Mutate exactly one byte of EventCore.
+Replay(H').
+Expected:
+H' ≠ H AND Replay(H') fails
+After `rfl-transition` + `rfl-ledger`:
+AGENT
+│ OperationRequest
+│ rfl-transition│
+EventProposal
+│   rfl-ledger  │
+immutable history
+replay
+reconstructed State
+The important direction is:
+history → state
+not:
+state → history
+That is the difference between an auditable protocol and a database with an audit log.
+A valid ledger does not prove:
+the C semantics were correctly reconstructed
+the Rust implementation is correct
+a test was sufficient
+the evidence is relevant
+a contract is satisfied
+the gate predicate is appropriate
+Linux upstream will accept the patch
+It proves something narrower and valuable:
+the protocol history is structurally and semantically coherent, and deterministic replay reconstructs the claimed protocol state.
+That boundary must remain narrow.
+We now have three distinct authority layers:
+│ vocabulary + canonical identities
+│ admissibility
+│ historical authority
+│ execution observation
+│ certification decision
+certificate
+Each layer answers a different question:
+Layer
+Question
+What does the protocol mean by this object?
+Is this requested state transition permitted?
+What actually belongs to authoritative protocol history?
+What was actually observed during execution?
+Are the certification requirements satisfied?
+That separation is now strong enough to support the next layer.
+Next: `rfl-evidence v0.1`
+The difficult problem there is to prevent the classic chain:
+command exited 0
+"test passed"
+"artifact verified"
+"contract satisfied"
+from becoming an implicit assumption.
+Instead we will formalize:
+Artifact
+ExecutionRequest
+ExecutionObservation
+EvidenceRecord
+EvidenceValidity
+ContractSatisfaction
+with explicit binding of **artifact digest, input digest, command digest, executor, environment, toolchain, configuration, architecture, and output artifacts**.
