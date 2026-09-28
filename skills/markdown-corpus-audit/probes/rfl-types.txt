@@ -88,7 +88,7 @@ RFL-AE should reject this rather than attempt to reason around it.
 Status algebra
 Several concepts currently risk being collapsed into one enum.
 Do not do that.
-### Gate status
+\### Gate status
 pub enum GateStatus {
 Pass,
 Fail,

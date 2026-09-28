@@ -313,28 +313,28 @@ UpstreamAcceptanceState
 This is necessary because technical correctness and upstream acceptance are different authorities.
 Conformance properties
 Beyond the 18 individual tests, define protocol-level properties.
-### P1 — No unauthorized execution
+\### P1 — No unauthorized execution
 ¬Authorized(request)
 ⇒ ¬Executing(request)
-### P2 — No stale execution
+\### P2 — No stale execution
 request.epoch != state.epoch
 ⇒ Reject(EpochMismatch)
-### P3 — No scope escape
+\### P3 — No scope escape
 target ∉ authorization.scope
 ⇒ Reject(ScopeViolation)
-### P4 — No evidence without execution
+\### P4 — No evidence without execution
 Evidence(subject)
 ⇒ corresponding execution exists
-### P5 — No certification without verification
+\### P5 — No certification without verification
 Certified(task)
 ⇒ Verified(task)
-### P6 — No certification with blocked required gate
+\### P6 — No certification with blocked required gate
 required_gate == Blocked
 ⇒ ¬Certified
-### P7 — Replay determinism
+\### P7 — Replay determinism
 replay(ledger)
 == authoritative_state
-### P8 — Immutable history
+\### P8 — Immutable history
 committed_event
 ⇒ cannot be replaced by later event
 These become candidates for property-based testing later.

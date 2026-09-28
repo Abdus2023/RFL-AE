@@ -362,7 +362,7 @@ It needs to trust only:
 typed state + deterministic rules + authorized execution + authenticated evidence
 The actual AI architecture
 With this foundation, the agents can finally become interesting.
-### Semantic agents
+\### Semantic agents
 C-ControlFlow
 C-DataFlow
 C-Memory
@@ -373,12 +373,12 @@ C-Context
 C-ABI
 C-Config
 C-Architecture
-### Synthesis agents
+\### Synthesis agents
 ContractSynthesizer
 ConflictResolver
 RustDesigner
 UnsafeReviewer
-### Verification agents
+\### Verification agents
 StaticVerifier
 BuildVerifier
 KUnitVerifier
@@ -386,7 +386,7 @@ RuntimeVerifier
 DifferentialVerifier
 ConcurrencyVerifier
 ABIVerifier
-### Governance agents
+\### Governance agents
 EvidenceAuditor
 GateAuditor
 ProvenanceAuditor

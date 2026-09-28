@@ -29,9 +29,9 @@ Its responsibility is:
 EVENT INTEGRITY + ORDER + APPEND + REPLAY + HISTORY VALIDATION
 Event identity
 The event needs two different identities.
-### Logical identity
+\### Logical identity
 pub struct EventId(pub Uuid);
-### Content identity
+\### Content identity
 pub struct EventDigest(pub Digest);
 They must not be conflated.
 Two events can have different IDs but identical content.
@@ -170,10 +170,10 @@ same Result
 This is one reason the protocol kernel must remain separate from probabilistic agents.
 Time handling
 There are two different kinds of time.
-### Protocol time
+\### Protocol time
 Used for authorization expiration:
 now >= expires_at
-### Historical time
+\### Historical time
 Recorded as evidence about when something happened.
 They must not be confused.
 A replay of an event from yesterday must not suddenly fail because:
@@ -296,27 +296,27 @@ Replay      = BLOCKED
 rather than collapsing everything into `invalid`.
 Adversarial ledger suite
 Now expand the earlier 18 tests with ledger-specific attacks.
-### L1 — Modify event content
+\### L1 — Modify event content
 E7.operation:
 Execute → Verify
 DigestMismatch
-### L2 — Modify resulting state
+\### L2 — Modify resulting state
 StateChainMismatch
-### L3 — Modify previous event
+\### L3 — Modify previous event
 HistoryLinkMismatch
-### L4 — Reorder events
+\### L4 — Reorder events
 E7, E8, E6
 SequenceViolation
-### L5 — Duplicate event
+\### L5 — Duplicate event
 DuplicateEvent
-### L6 — Duplicate request with different digest
-### L7 — Fork
+\### L6 — Duplicate request with different digest
+\### L7 — Fork
 E10 → E11A
 E10 → E11B
-### L8 — Forge resulting state
+\### L8 — Forge resulting state
 An attacker constructs a syntactically valid event whose state digest claims:
 without performing transitions.
-### L9 — Historical expiration trap
+\### L9 — Historical expiration trap
 Replay an event whose authorization expired **after the event occurred**.
 Replay succeeds
 This is a particularly important positive test.

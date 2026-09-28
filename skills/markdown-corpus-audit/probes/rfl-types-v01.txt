@@ -57,7 +57,7 @@ contract: ContractId,
 evidence: &[EvidenceId],
 ) { ... }
 Do not use a naked `[u8; 32]`.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+\#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DigestAlgorithm {
 Sha256,
 pub struct Digest {
@@ -201,17 +201,17 @@ rather than:
 Executing
 The latter destroys useful historical semantics.
 These must remain separate.
-### Gate
+\### Gate
 pub enum GateStatus {
 Pass,
 Fail,
 Blocked,
 NotApplicable,
 Invalidated,
-### Verification
+\### Verification
 pub enum VerificationStatus {
 PartiallyVerified,
-### Evidence validity
+\### Evidence validity
 Do not overload epistemic status with validity.
 Use two axes:
 pub enum EvidenceKind {
@@ -260,7 +260,7 @@ pub explanation: Option<String>,
 But the enum is normative.
 This is a critical freeze point.
 RFL-AE should not rely on:
-#[derive(Serialize)]
+\#[derive(Serialize)]
 alone as its canonical identity mechanism.
 For every hash-bearing object define:
 CanonicalEncode(T) → bytes
@@ -279,22 +279,22 @@ digest
 Serialization is representation.
 It is not semantics.
 The crate should test these directly.
-### ID isolation
-#[test]
+\### ID isolation
+\#[test]
 fn ids_are_distinct_types() { ... }
-### Digest canonicality
+\### Digest canonicality
 fn digest_serialization_is_canonical() { ... }
-### Epoch equality
+\### Epoch equality
 fn epoch_changes_when_any_component_changes() { ... }
 Four mutation tests:
 kernel changes       → epoch changes
 specification changes → epoch changes
 protocol changes      → epoch changes
 generation changes    → epoch changes
-### Gate distinction
+\### Gate distinction
 fn fail_is_not_blocked() { ... }
 fn blocked_is_not_fail() { ... }
-### Evidence distinction
+\### Evidence distinction
 fn observed_does_not_mean_valid() { ... }
 The first executable property should be:
 P1: No stale request can become an accepted transition.

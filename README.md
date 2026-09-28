@@ -399,6 +399,16 @@ non-self-validating release gate.
   `rfl-transition v0.1` engine, precondition order and transition table; attacks A01–A18; a
   synthetic conformance scenario; and the **implementation freeze point**. Same provenance
   convention as `VERIFICATION.md`.
+- **[RFL-TRANSITION-V01.md](RFL-TRANSITION-V01.md)** (§947–§969, source §§1–§23 — the author
+  restarted at §1, so the offset is +946) — *`rfl-transition v0.1` — executable state-machine
+  specification*: the transition layer decides admissibility and never executes; explicit `State`
+  and `TransitionContext` with no hidden inputs; a deterministic δ returning an `EventProposal`,
+  not committed history; **Accepted ≠ Executed ≠ Succeeded ≠ Verified ≠ Certified**; pure
+  preconditions in a frozen P01–P19 order; the full authorization relation; scope containment; the
+  state-transition matrix; attempts instead of backward moves; `(RequestId, RequestDigest)`
+  idempotency; operation policies; replay and the historical-time rule; invariants T1–T10;
+  property-based tests; and `rfl-ledger` as the next hard point. Same provenance convention as
+  `VERIFICATION.md`.
 
 ## Tooling
 
@@ -426,7 +436,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§946 numbering. Every checkable
+a specification, so it sits outside the §1–§969 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -436,6 +446,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Thirty-one specification documents covering §1–§946 (§108 does not
+`v0.0` — documentation only. Thirty-two specification documents covering §1–§969 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

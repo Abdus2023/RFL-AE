@@ -36,7 +36,7 @@ This prevents the analyzer from becoming the semantic authority.
 Start with strongly typed IDs.
 macro_rules! id_type {
 ($name:ident) => {
-#[serde(transparent)]
+\#[serde(transparent)]
 pub struct $name(pub uuid::Uuid);
 id_type!(SnapshotId);
 id_type!(VariantId);
@@ -322,7 +322,7 @@ tool identities
 algorithm revisions
 must produce the same canonical digest.
 Test:
-#[test]
+\#[test]
 fn identical_input_produces_identical_ksir_digest() {
 let a = analyze_fixture();
 let b = analyze_fixture();

@@ -43,7 +43,7 @@ stage "2/7 skills are well-formed" \
   $PY skills/skill-creator/scripts/validate_skill.py skills/
 
 # --strict: a render check that could not run must fail the stage, not pass it
-stage "3/7 corpus audit (31 documents)" \
+stage "3/7 corpus audit (32 documents)" \
   $PY skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108 --strict
 
 stage "4/7 every internal link resolves (rendered HTML)" \
@@ -51,13 +51,13 @@ stage "4/7 every internal link resolves (rendered HTML)" \
       --allow skills/markdown-corpus-audit/SKILL.md
 
 stage "5/7 last document audited in full" \
-  $PY skills/markdown-corpus-audit/scripts/audit_file.py RFL-TYPES-V01.md \
-      --range 926-946 --source-name RFL-TYPES-V01.md --offset 925 --strict \
-      --probes skills/markdown-corpus-audit/probes/rfl-types-v01.txt
+  $PY skills/markdown-corpus-audit/scripts/audit_file.py RFL-TRANSITION-V01.md \
+      --range 947-969 --source-name RFL-TRANSITION-V01.md --offset 946 --strict \
+      --probes skills/markdown-corpus-audit/probes/rfl-transition-v01.txt
 
 stage "6/7 close-out ritual verified" \
   $PY skills/spec-turn-closeout/scripts/verify_closeout.py \
-      --new RFL-TYPES-V01.md --prev RFL-GATES.md
+      --new RFL-TRANSITION-V01.md --prev RFL-TYPES-V01.md
 
 echo
 echo "════════ 7/7 negative tests (each MUST fail) ════════"

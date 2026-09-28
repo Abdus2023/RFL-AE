@@ -308,6 +308,12 @@ def check_probes(text: str, probes: Sequence[str]) -> Dict:
 def load_probes(path: str) -> List[str]:
     """Probe file: one verbatim phrase per line. `#` starts a comment.
 
+    A phrase that itself begins with `#` -- a `###` heading, a `#[test]` or
+    `#[derive(...)]` attribute -- must be written with a leading backslash
+    (`\\### Gate`, `\\#[test]`); the backslash is removed. Without it the
+    line is a comment and is silently NOT checked, which is how 52 heading
+    and attribute probes across seven files went unchecked until corpus §969.
+
     Probes must be copied from the SOURCE, not from the generated file -- a
     probe written from memory that disagrees with the source produces a phantom
     failure. Grep the source before treating a miss as a defect.
@@ -316,6 +322,8 @@ def load_probes(path: str) -> List[str]:
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.rstrip("\n")
-            if line.strip() and not line.lstrip().startswith("#"):
+            if line.startswith("\\#"):
+                out.append(line[1:])
+            elif line.strip() and not line.lstrip().startswith("#"):
                 out.append(line)
     return out

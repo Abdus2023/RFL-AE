@@ -980,3 +980,18 @@ FIRST REAL MIGRATION UNIT
 ```
 
 The next artifact should therefore be the **normative `rfl-types v0.1` source-level specification**: exact Rust declarations, derives, visibility, dependency policy, canonical serialization rules, constructor invariants, and the complete unit-test matrix. After that, `rfl-transition` can be specified against a frozen type surface rather than continuing to move underneath it.
+
+---
+
+**Done — see [RFL-TRANSITION-V01.md](RFL-TRANSITION-V01.md)** (§947–§969, source §§1–§23 — the
+author restarted at §1 again, so the offset is +946), *`rfl-transition v0.1` — executable
+state-machine specification*, which freezes the transition semantics against this document's type
+surface: `rfl-transition` decides whether a transition is admissible and never executes it; an
+explicit `State` and `TransitionContext` with no hidden inputs; a deterministic δ that returns an
+`EventProposal` rather than committed history; **Accepted ≠ Executed ≠ Succeeded ≠ Verified ≠
+Certified**; pure precondition functions in a frozen P01–P19 order; the full authorization
+relation; capability versus authorization; scope containment; the state-transition matrix and its
+invalid transitions; attempts instead of backward moves; `(RequestId, RequestDigest)` idempotency;
+self-verification as an open design point; operation policies; replay and the historical-time
+rule; invariants T1–T10; property-based tests; and `rfl-ledger` as the next hard point. Same
+provenance convention as `VERIFICATION.md`.

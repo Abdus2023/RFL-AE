@@ -1,8 +1,8 @@
 # RFL-AE skills
 
 The reusable toolchain distilled from producing this specification corpus —
-thirty-one documents, 945 sections, 1969 text-fenced diagram blocks (842 of them
-reproducible from the committed generators in `diagrams/`) — across thirty-one
+thirty-two documents, 968 sections, 2043 text-fenced diagram blocks (916 of them
+reproducible from the committed generators in `diagrams/`) — across thirty-two
 consecutive specification pastes.
 
 These are not notes about the process. They are the process, runnable.

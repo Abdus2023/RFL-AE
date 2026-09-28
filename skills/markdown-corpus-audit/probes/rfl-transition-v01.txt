@@ -1,0 +1,408 @@
+# Verbatim phrases from the RFL-TRANSITION-V01 source (§1-§23 plus the
+# unnumbered introduction). One phrase per line, transcribed from the pasted
+# SOURCE, not from the generated file. Used by audit_file.py --probes.
+\# `rfl-transition v0.1` — executable state-machine specification
+The next layer should now be frozen at the **transition semantics** level.
+The key rule is:
+`rfl-transition` decides whether a requested transition is admissible. It does not execute the requested operation.
+That distinction prevents the protocol from quietly becoming an execution engine.
+crates/rfl-transition/
+├── Cargo.toml
+└── src/
+├── lib.rs
+├── engine.rs
+├── state.rs
+├── context.rs
+├── preconditions.rs
+├── transitions.rs
+├── rejection.rs
+├── authorization.rs
+├── replay.rs
+└── tests/
+├── admission.rs
+├── execution.rs
+├── verification.rs
+├── certification.rs
+├── epoch.rs
+└── adversarial.rs
+Dependency:
+rfl-transition
+└── rfl-types
+Not:
+rfl-transition → rfl-ledger
+rfl-transition → rfl-evidence
+rfl-transition → rfl-gates
+Those crates consume transition results.
+This avoids circular authority.
+The transition engine needs an explicit authoritative state.
+pub struct State {
+pub epoch: Epoch,
+pub tasks: TaskStore,
+pub attempts: AttemptStore,
+pub authorizations: AuthorizationStore,
+pub capabilities: CapabilityStore,
+pub dependencies: DependencyState,
+The stores should be deterministic collections.
+For v0.1, conceptually:
+pub trait TaskStore {
+fn get(&self, id: TaskId) -> Option<&Task>;
+and equivalent lookup interfaces for other entities.
+The transition engine must not fetch missing information from:
+- the filesystem
+- Git
+- the network
+- an LLM
+- environment variables
+- current process state
+- arbitrary shell commands
+If the engine needs information, it must be present in `State` or `TransitionContext`.
+Some facts are needed to evaluate a transition but are not themselves authoritative state.
+pub struct TransitionContext {
+pub observed_time: Timestamp,
+pub authorization_state: AuthorizationState,
+pub dependency_state: DependencyState,
+More importantly:
+State
+= authoritative protocol state
+Context
+= supplied evaluation context
+The engine must not silently construct either.
+The core mathematical contract becomes:
+δ : (State, OperationRequest, TransitionContext)
+TransitionResult
+Accepted(EventProposal)
+Rejected(Rejection)
+For the same inputs:
+δ(S, R, C) = X
+must always produce the same `X`.
+Therefore this is forbidden inside `apply()`:
+SystemTime::now()
+rand::random()
+network_call()
+llm_call()
+read_environment()
+read_filesystem()
+If time matters, it comes through:
+context.observed_time
+Do not immediately emit a committed ledger event.
+Return a proposal:
+pub struct EventProposal {
+pub event_id: EventId,
+pub actor: AgentId,
+pub task: TaskId,
+pub request: RequestId,
+pub operation: OperationKind,
+pub previous_state: Digest,
+pub resulting_state: Digest,
+TransitionEngine
+EventProposal
+Ledger validation
+append
+authoritative history
+This gives the ledger the opportunity to reject:
+- duplicate events
+- broken sequence
+- broken previous-event links
+- digest mismatch
+- forks
+The transition engine should not pretend that an accepted *proposal* is already durable history.
+This distinction needs to be explicit.
+REQUEST
+Transition accepted
+authorization to perform operation
+actual executor
+execution result
+OperationKind::Execute
+being accepted means:
+"The protocol permits this execution."
+It does **not** mean:
+"The command ran successfully."
+That second fact belongs to `rfl-evidence`.
+Accepted ≠ Executed
+Executed ≠ Succeeded
+Succeeded ≠ Verified
+Verified ≠ Certified
+This chain should become a formal invariant across the repository.
+Implement the precondition pipeline as pure functions.
+pub fn check_task(
+state: &State,
+request: &OperationRequest,
+) -> Result<(), RejectionReason>;
+pub fn check_epoch(
+pub fn check_authorization(
+context: &TransitionContext,
+pub fn check_scope(
+authorization: &Authorization,
+pub fn check_task_state(
+task: &Task,
+operation: &OperationKind,
+Then the engine composes them.
+Freeze the order.
+P01 request identity
+P02 task existence
+P03 epoch
+P04 snapshot
+P05 specification
+P06 protocol
+P07 authorization existence
+P08 authorization epoch
+P09 authorization actor
+P10 authorization task
+P11 capability
+P12 operation compatibility
+P13 scope
+P14 expiry
+P15 revocation
+P16 task state
+P17 dependency state
+P18 duplicate/replay
+P19 operation-specific preconditions
+This is not merely an implementation convenience.
+It makes rejection behavior deterministic.
+Given the same invalid request, RFL-AE should not sometimes report:
+EpochMismatch
+and sometimes:
+ScopeViolation
+depending on hash-map iteration order.
+Authorization validity should be a conjunction:
+AUTHORIZED(R,S,C)
+:=
+AuthorizationExists
+∧   EpochMatches
+∧   ActorMatches
+∧   TaskMatches
+∧   CapabilityExists
+∧   OperationAllowed
+∧   ScopeSatisfied
+∧   NotExpired
+∧   NotRevoked
+Authorization exists
+is insufficient.
+Capability exists
+Agent possesses capability
+The protocol requires the complete relation.
+This deserves an explicit invariant.
+Capability
+what an actor may potentially perform
+Authorization
+permission to perform one operation
+for one task
+in one epoch
+within one scope
+Thus:
+Capability(Execute, /drivers/foo)
+does not itself authorize:
+Execute(Task-42, /drivers/foo)
+Authorization must bind the capability to the concrete task and epoch.
+Scope evaluation must be monotonic:
+requested_scope ⊆ authorized_scope
+Never:
+authorized_scope ⊆ requested_scope
+Example:
+Authorized:
+drivers/foo/**
+Request:
+drivers/foo/bar.c
+→ permitted.
+drivers/bar/baz.c
+→ `ScopeViolation`.
+drivers/foo/** + drivers/bar/**
+The latter is important because an agent must not enlarge its scope by adding another target.
+Freeze the protocol state machine:
+Created
+│ Admit
+Admitted
+│ Authorize
+Authorized
+│ Execute
+Executing
+├──────── Complete ────────► Succeeded
+└──────── Fail ────────────► Failed
+Succeeded
+│ Verify
+Verified
+│ Gate
+Gated
+│ Certify
+Certified
+Invalid transitions include:
+Created      → Execute
+Created      → Verify
+Created      → Certify
+Admitted     → Execute
+Authorized   → Verify
+Executing    → Certify
+Succeeded    → Certify
+Failed       → Verify
+Verified     → Execute
+Gated        → Execute
+Certified    → anything
+All must reject.
+The retry model is:
+Task T
+├── Attempt A0
+│     └── Failed
+├── Attempt A1
+└── Attempt A2
+└── Succeeded
+A failed attempt is immutable.
+Do not mutate:
+A0.state = Executing
+back into execution.
+Create:
+A1
+instead.
+This provides an important forensic property:
+attempt sequence is historical evidence
+`RequestId` alone is not enough.
+Define:
+RequestDigest = Digest(CanonicalEncode(OperationRequest))
+(RequestId, RequestDigest)
+identifies an exact request instance.
+Cases:
+\### Same ID + same digest
+→ return recorded result
+This gives idempotency.
+\### Same ID + different digest
+→ ReplayConflict
+This prevents:
+RequestId = R1
+first meaning  = Execute(foo)
+second meaning = Execute(bar)
+from being interpreted as the same operation.
+The transition layer should explicitly reject self-verification where the same authority chain is attempting to establish its own trust.
+Conceptually:
+artifact generator
+verification authority
+must not collapse into:
+"verify myself"
+At minimum:
+if request.actor == artifact.generator {
+reject(SelfVerification)
+But the eventual rule should be stronger than simple actor inequality.
+The relevant relation is **independence of authority**, not merely different identifiers.
+This should remain an explicit open design point until the verification-authority model is frozen.
+The generic state machine should not contain Linux-specific semantics.
+pub trait OperationPolicy {
+fn check(
+&self,
+) -> Result<(), RejectionReason>;
+generic transition engine
+├── generic authorization
+├── generic epoch
+├── generic scope
+└── operation policy
+This allows:
+to have additional requirements without contaminating the core transition algebra.
+Replay must reconstruct state from history.
+stored_state
+stored_events
+"probably valid"
+Genesis
+Event 1
+State 1
+Event 2
+State 2
+Formally:
+replay(E₀...Eₙ) = Sₙ
+stored resulting_state == digest(replay-derived state)
+must hold.
+If they disagree:
+ReplayDivergence
+Suppose:
+09:00 authorization active
+09:05 Execute accepted
+09:10 authorization expires
+At 09:20, historical replay must **not** reject the 09:05 event because the authorization is now expired.
+Otherwise historical truth becomes dependent on present state.
+Therefore replay needs historical context:
+Event
+├── event timestamp
+├── authorization snapshot/reference
+├── epoch
+└── transition inputs
+The principle is:
+current validity ≠ historical validity
+Later revocation is represented as another event.
+History is never rewritten.
+Construct:
+E0: authorization active
+E1: Execute accepted
+E2: authorization revoked
+Then replay all three.
+Expected:
+E1 = valid historical transition
+E2 = valid revocation transition
+E1 = invalid because authorization is currently revoked
+This test is essential.
+The v0.1 crate should establish at least these:
+\### T1 — stale epoch rejection
+request.epoch != state.epoch ⇒ reject
+\### T2 — unauthorized operation rejection
+¬AUTHORIZED(request) ⇒ reject
+\### T3 — scope monotonicity
+requested_scope ⊄ authorized_scope ⇒ reject
+\### T4 — invalid transition rejection
+(state, operation) ∉ TransitionTable ⇒ reject
+\### T5 — no state mutation on rejection
+apply(S,R,C) = Reject ⇒ S' = S
+\### T6 — deterministic result
+δ(S,R,C) = X ⇒ repeated δ(S,R,C) = X
+\### T7 — duplicate idempotency
+same RequestId + same RequestDigest ⇒ same historical result
+\### T8 — conflicting replay rejection
+same RequestId + different RequestDigest ⇒ ReplayConflict
+\### T9 — historical replay stability
+past valid transition
+must remain valid when later authorization state changes.
+\### T10 — no certification shortcut
+cannot directly imply:
+without the gate transition.
+This is where RFL-AE should stop relying solely on hand-written examples.
+Generate arbitrary invalid requests and assert:
+∀ R:
+epoch mismatch
+⇒ never Accepted
+Likewise:
+unauthorized scope
+∀ S,R,C:
+rejected transition
+⇒ state unchanged
+For replay:
+∀ valid histories H:
+replay(H) == recorded_final_state
+Then mutate:
+event digest
+previous event
+state digest
+sequence
+request digest
+and require replay failure.
+At this point the architecture becomes very clean:
+HUMAN / POLICY
+OperationRequest
+│   rfl-transition      │
+│ epoch                 │
+│ authorization         │
+│ capability            │
+│ scope                 │
+│ state                 │
+│ dependencies          │
+│ transition table      │
+Accepted
+rfl-ledger
+authoritative
+history
+The executor is deliberately outside this box.
+That is the trust-boundary decision that prevents RFL-AE from turning into an opaque agent runtime.
+Once this transition specification is frozen, the next implementation sequence should be:
+rfl-types
+├── hash-chain validation
+├── fork detection
+└── tamper tests
+rfl-evidence
+rfl-gates
+The **next genuinely difficult point is `rfl-ledger`**, because that is where the protocol moves from a pure transition relation to durable historical authority.
+The key question there is not “how do we store events?” It is:
+What exactly makes a historical event authoritative, and how do we prove that replay of that history reconstructs the same protocol state without trusting the stored state itself?
+That should be the next layer we freeze.
