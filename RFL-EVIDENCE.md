@@ -1112,3 +1112,18 @@ but both
 ```
 
 Then we can connect the executable kernel to the **MigrationUnit → KSIR → Contract → Rust Design IR** pipeline without letting the semantic agents bypass the authority machinery.
+
+---
+
+**Done — see [RFL-GATES.md](RFL-GATES.md)** (§894–§925, source §§90–§120 plus the unnumbered
+closing section, continuing this document's own numbering), which specifies **`rfl-gates`**, where
+independently established facts become a controlled release decision without collapsing
+uncertainty into a boolean: a gate is not a test; gate definitions kept apart from gate results;
+PASS / FAIL / BLOCKED / NOT_APPLICABLE / INVALIDATED; a closed, typed requirement algebra in which
+`Any` never turns missing evidence into success; a deterministic evaluator with no LLM judgment;
+required, optional and conditional gates; the `RELEASE_ELIGIBLE` predicate as a conjunction of
+necessary conditions; dependency invalidation and a cycle-free gate graph; structured gate
+explanations instead of a `ready` boolean; technical certification kept independent of upstream
+acceptance; certificates as derived views with propagated invalidation; the first vertical slice;
+and the conclusion that the architecture has reached the **implementation boundary**. Same
+provenance convention as `VERIFICATION.md`.

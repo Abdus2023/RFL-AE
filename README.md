@@ -377,6 +377,17 @@ non-self-validating release gate.
   `FAILED`); invalidation without rewriting history; *execution success does not imply
   certification*; and `rfl-gates` as the next step. Same provenance convention as
   `VERIFICATION.md`.
+- **[RFL-GATES.md](RFL-GATES.md)** (§894–§925, source §§90–§120 plus an unnumbered closing section
+  recorded as §121, so the offset stays +804; untitled in the source) — specifies **`rfl-gates`**,
+  where independently established facts become a controlled release decision without collapsing
+  uncertainty into a boolean. A gate is not a test; PASS / FAIL / BLOCKED / NOT_APPLICABLE /
+  INVALIDATED; a closed requirement algebra in which `Any` never turns missing evidence into
+  success; a deterministic evaluator with no LLM judgment; the `RELEASE_ELIGIBLE` predicate as a
+  conjunction of necessary conditions; dependency invalidation over a cycle-free gate graph;
+  structured explanations instead of a `ready` boolean; technical certification independent of
+  upstream acceptance; certificates as derived views; the first vertical slice; and the verdict
+  that the architecture has reached the **implementation boundary**. Same provenance convention
+  as `VERIFICATION.md`.
 
 ## Tooling
 
@@ -404,7 +415,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§893 numbering. Every checkable
+a specification, so it sits outside the §1–§925 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -414,6 +425,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-nine specification documents covering §1–§893 (§108 does not
+`v0.0` — documentation only. Thirty specification documents covering §1–§925 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.
