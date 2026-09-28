@@ -107,10 +107,10 @@ Positive — the real corpus must be clean and must reproduce known figures:
 python3 skills/markdown-corpus-audit/scripts/audit_corpus.py --expect-gaps 108
 ```
 
-Expected: 28 documents, 864 sections, range `1 .. 865`, no duplicates,
+Expected: 29 documents, 892 sections, range `1 .. 893`, no duplicates,
 gaps `[108]`, `ALL FILES OK`, exit 0. Per-file figures to spot-check:
-`RFL-LEDGER.md` 168 fences / 23 sections / `23/23 +804` (source §39–§61);
-`RFL-TRANSITION.md` 120 fences / 20 sections / `20/20 +804` (source §19–§38).
+`RFL-EVIDENCE.md` 160 fences / 28 sections / `28/28 +804` (source §62–§89);
+`RFL-LEDGER.md` 168 fences / 23 sections / `23/23 +804` (source §39–§61).
 
 Links — `audit_file.py` only resolves **same-file** anchors and checks that a
 linked `.md` path *exists*; it does not verify that a cross-file anchor
@@ -122,7 +122,7 @@ python3 skills/markdown-corpus-audit/scripts/linkaudit.py \
     --allow skills/markdown-corpus-audit/SKILL.md
 ```
 
-Expected: 45 files, 690 local links, `broken: 0`, `excused: 2`, exit 0. The
+Expected: 46 files, 724 local links, `broken: 0`, `excused: 2`, exit 0. The
 `--allow` entries are files permitted to carry deliberately broken *example*
 links (this document demonstrates one below); they are reported but do not fail
 the run. Do not `--allow` a corpus document.

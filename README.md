@@ -366,6 +366,17 @@ non-self-validating release gate.
   silent history rewriting, and **correction ≠ erasure**; immutable events and an explicit
   genesis; structural, semantic and replay validation levels; the ledger attacks L1–L9; and
   `rfl-evidence` as the next boundary. Same provenance convention as `VERIFICATION.md`.
+- **[RFL-EVIDENCE.md](RFL-EVIDENCE.md)** (§866–§893, source §§62–§89 — continuing the author's
+  numbering, so the offset stays +804; untitled in the source) — specifies **`rfl-evidence`**, the
+  most important external trust boundary: the ledger records what RFL-AE authorized, evidence
+  establishes what an external execution system actually observed. Immutable artifact identity
+  and provenance; typed execution requests; observations that report but never certify; evidence
+  records bound to epoch, task, artifact, execution, command, inputs, outputs, environment and
+  toolchain; **Failed ≠ Blocked**; the forged-artifact, stale-evidence and self-generated-evidence
+  attacks; configuration scope; evidence completeness (missing evidence means `BLOCKED`, not
+  `FAILED`); invalidation without rewriting history; *execution success does not imply
+  certification*; and `rfl-gates` as the next step. Same provenance convention as
+  `VERIFICATION.md`.
 
 ## Tooling
 
@@ -393,7 +404,7 @@ report a skipped check as a pass.
 
 [`audit/`](audit/README.md) contains an external deep audit of this branch at
 `952e300`, split into eight themed documents. It is a review of the corpus, not
-a specification, so it sits outside the §1–§865 numbering. Every checkable
+a specification, so it sits outside the §1–§893 numbering. Every checkable
 claim in it was re-verified before being saved; the results, including one
 correction to the report, are recorded in
 [audit/README.md](audit/README.md#verification-of-this-audits-factual-claims).
@@ -403,6 +414,6 @@ what the status line below already says.
 
 ## Status
 
-`v0.0` — documentation only. Twenty-eight specification documents covering §1–§865 (§108 does not
+`v0.0` — documentation only. Twenty-nine specification documents covering §1–§893 (§108 does not
 exist in the source; the gap is preserved); no Rust crates, JSON schemas, or executable
 benchmarks have been written yet.

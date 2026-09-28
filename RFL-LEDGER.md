@@ -1014,3 +1014,17 @@ OBSERVATION
 `rfl-evidence` should therefore be designed around **binding evidence to exact artifacts, exact inputs, exact execution, exact environment, and exact epoch**, rather than around a generic `passed: bool`.
 
 That is the next layer to formalize.
+
+---
+
+**Done — see [RFL-EVIDENCE.md](RFL-EVIDENCE.md)** (§866–§893, source §§62–§89, continuing this
+document's own numbering), which specifies **`rfl-evidence`**, the most important external trust
+boundary — the ledger records what RFL-AE authorized; evidence establishes what an external
+execution system actually observed: immutable artifact identity and provenance; typed execution
+requests; execution observations that deliberately carry no `verified = true`; evidence records
+bound to epoch, task, artifact, execution, command, inputs, outputs, environment and toolchain;
+**Failed ≠ Blocked**; the forged-artifact, stale-evidence and self-generated-evidence attacks;
+configuration and architecture scope; evidence completeness (missing evidence gives `BLOCKED`,
+not `FAILED`); evidence invalidation without rewriting history; the theorem that execution
+success does not imply certification; and `rfl-gates` as the next step. Same provenance
+convention as `VERIFICATION.md`.

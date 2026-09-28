@@ -1,0 +1,411 @@
+# Verbatim phrases from the RFL-EVIDENCE source (§62-§89).
+# One phrase per line, transcribed from the pasted SOURCE, not from the
+# generated file. Used by audit_file.py --probes.
+Now we cross the most important external trust boundary: **`rfl-evidence`**.
+The transition/ledger layers establish what RFL-AE authorized and what the protocol says happened. `rfl-evidence` establishes what an external execution system actually observed.
+crates/rfl-evidence/
+├── Cargo.toml
+└── src/
+├── lib.rs
+├── record.rs
+├── binding.rs
+├── artifact.rs
+├── execution.rs
+├── environment.rs
+├── toolchain.rs
+├── outcome.rs
+├── canonical.rs
+├── validate.rs
+└── tests/
+├── adversarial.rs
+└── canonical.rs
+Its dependency boundary:
+rfl-types
+rfl-evidence
+It should not depend on:
+- an LLM
+- a semantic analyzer
+- a Rust generator
+- a specific CI provider
+- GitHub
+- Cargo
+- clang
+- the Linux kernel
+Those are evidence producers.
+We need four distinct objects:
+Artifact
+ExecutionRequest
+ExecutionObservation
+EvidenceRecord
+And then:
+Verification
+VerificationResult
+Do not skip the intermediate layers.
+An artifact must have immutable identity.
+pub struct ArtifactIdentity {
+pub id: ArtifactId,
+pub digest: Digest,
+pub kind: ArtifactKind,
+Possible kinds:
+pub enum ArtifactKind {
+SourceTree,
+SourceFile,
+RustCrate,
+Binary,
+KernelImage,
+Module,
+TestBundle,
+Patch,
+Documentation,
+EvidenceBundle,
+The digest answers:
+Which exact bytes?
+It does not answer:
+What do these bytes mean?
+That semantic distinction remains important.
+pub enum ArtifactOrigin {
+Generated,
+HumanCreated,
+HumanModified,
+MechanicalTransform,
+Merge,
+CherryPick,
+Imported,
+pub struct ArtifactRecord {
+pub identity: ArtifactIdentity,
+pub epoch: Epoch,
+pub origin: ArtifactOrigin,
+pub parents: Vec<ArtifactId>,
+This connects directly to the AI-generation provenance architecture.
+C source
+semantic analysis
+AI-generated Rust
+human modification
+formatting
+final artifact
+Every transition should remain visible.
+The execution system should receive a typed request.
+pub struct ExecutionRequest {
+pub id: RequestId,
+pub task: TaskId,
+pub artifact: ArtifactIdentity,
+pub executor: ExecutorId,
+pub input: InputSet,
+pub operation: ExecutionOperation,
+pub enum ExecutionOperation {
+Build,
+UnitTest,
+KUnit,
+Kselftest,
+RuntimeTest,
+StaticAnalysis,
+DifferentialTest,
+ConcurrencyTest,
+AbiCheck,
+"make test"
+is not the protocol-level semantic operation.
+The adapter can translate:
+ExecutionOperation::KUnit
+into the actual commands required by a particular environment.
+The executor returns an observation:
+pub struct ExecutionObservation {
+pub execution_id: ExecutionId,
+pub started_at: Timestamp,
+pub finished_at: Timestamp,
+pub exit_status: Option<i32>,
+pub stdout_digest: Digest,
+pub stderr_digest: Digest,
+pub output_artifacts: Vec<ArtifactIdentity>,
+pub environment: EnvironmentFingerprint,
+pub toolchain: ToolchainFingerprint,
+Notice what is deliberately absent:
+verified = true
+The executor reports observations.
+It does not certify them.
+Now bind the observation to its subject.
+pub struct EvidenceRecord {
+pub id: EvidenceId,
+pub subject: ArtifactId,
+pub execution: ExecutionId,
+pub command_digest: Digest,
+pub input_digest: Digest,
+pub output_digest: Digest,
+pub outcome: EvidenceOutcome,
+The important relationship is:
+Evidence
+├── epoch
+├── task
+├── artifact
+├── execution
+├── inputs
+├── outputs
+├── environment
+└── toolchain
+Evidence without those bindings is weak evidence.
+Keep the outcome deliberately small:
+pub enum EvidenceOutcome {
+Passed,
+Failed,
+Blocked,
+NotApplicable,
+Failed ≠ Blocked
+A compiler error is not the same fact as:
+compiler unavailable
+test failed
+test never ran
+This becomes one of the central functions:
+pub fn validate_binding(
+evidence: &EvidenceRecord,
+artifact: &ArtifactRecord,
+execution: &ExecutionObservation,
+) -> Result<(), EvidenceError>
+It should establish:
+evidence.subject == artifact.identity.id
+evidence.execution == execution.execution_id
+evidence.epoch == artifact.epoch
+evidence.output_digest
+matches execution outputs
+and equivalent checks for input/environment/toolchain.
+Artifact A
+digest = AAA
+execute A
+Evidence claims:
+subject = Artifact B
+digest = BBB
+The evidence must be rejected.
+Artifact mismatch
+EvidenceUnbound
+This sounds obvious, but it is one of the most important boundaries in the whole architecture.
+A test result is meaningless if we cannot establish **what was tested**.
+tested
+PASS
+source changed
+Even if the artifact name is unchanged:
+old evidence ≠ current evidence
+E10 != E11
+The protocol should reject reuse unless an explicit derivation establishes that the old evidence remains applicable.
+Default:
+epoch mismatch
+→ evidence unusable
+For kernel migration this is essential.
+A result may depend on:
+compiler
+Rust version
+LLVM version
+clang version
+kernel tree
+host OS
+target architecture
+feature flags
+environment variables
+tool versions
+pub struct EnvironmentFingerprint {
+pub struct ToolchainFingerprint {
+can initially be opaque canonical fingerprints.
+Later they can be decomposed.
+The first protocol should not prematurely encode every tool.
+This connects directly to semantic verification.
+x86_64 + CONFIG_A
+That does not establish:
+ARM64 + CONFIG_B
+Therefore evidence needs scope:
+configuration
+architecture
+toolchain
+artifact
+Then RFL-AE can later calculate:
+ConfigurationCoverage
+ArchitectureCoverage
+without pretending that one successful build proves universal correctness.
+A command must also be bound.
+Do not merely store:
+command = "cargo test"
+as free text.
+Store a canonical execution specification and its digest:
+pub struct ExecutionSpec {
+pub operation: ExecutionOperation,
+pub arguments: Vec<String>,
+pub working_scope: Scope,
+command_digest = H(canonical(ExecutionSpec))
+This lets evidence establish:
+This exact operation was executed.
+Not merely:
+Something called a test was run.
+Likewise, stdout is not the artifact.
+For a build:
+source artifact
+compiler
+binary artifact
+Evidence should bind to the resulting binary:
+output_artifacts = [
+ArtifactIdentity(binary_digest)
+build passed
+this exact input → this exact toolchain → this exact execution → this exact output → produced this observed outcome
+That is substantially stronger.
+Now we can define:
+pub struct VerificationResult {
+pub artifact: ArtifactId,
+pub contract: ContractId,
+pub evidence: Vec<EvidenceId>,
+pub method: VerificationMethod,
+pub status: VerificationStatus,
+├── Evidence E1: build passed
+├── Evidence E2: KUnit passed
+├── Evidence E3: differential test passed
+└── Contract C17
+Verified
+The verification layer is where evidence is interpreted against a contract.
+Evidence alone does not know what constitutes success.
+This gives us a useful formal distinction:
+Evidence(E)
+a bounded observation exists.
+Whereas:
+Satisfies(E,C)
+the evidence is relevant and sufficient to establish contract `C`.
+Verified(A,C)
+artifact `A` satisfies contract `C` under the declared verification method and evidence.
+≠ Contract satisfaction
+≠ Verification
+A verification system should also be able to say:
+EvidenceStatus::Incomplete
+rather than manufacture a failure.
+Required:
+Observed:
+ABI
+differential
+Correct result:
+Verification = Blocked
+Verification = Failed
+because ABI and differential tests were never executed.
+This distinction will matter enormously for the final gate.
+We can formalize:
+Required evidence
+Available
+Result
+available
+missing
+Differential
+verification:
+BLOCKED
+because required evidence is absent.
+This is exactly the architecture's principle:
+NO EVIDENCE
+→ NO VERIFIED CLAIM
+Evidence should identify the executor:
+pub struct ExecutorIdentity {
+pub id: ExecutorId,
+pub kind: ExecutorKind,
+pub enum ExecutorKind {
+Human,
+CiRunner,
+BuildSystem,
+TestHarness,
+VerificationService,
+An LLM agent should not be treated as an execution authority merely because it generated a plausible transcript.
+Attack:
+Agent:
+generated artifact
+generated "test result"
+generated evidence record
+declares verification
+The protocol must require a real execution observation.
+requires ExecutionObservation
+requires registered Executor
+The agent cannot simply instantiate an authoritative executor identity.
+We can now create:
+│ digest
+│ authorization
+│ output
+│ contract interpretation
+GateResult
+This is the complete fact-to-decision chain.
+Evidence must be invalidatable without rewriting history.
+E100:
+Build passed
+E101:
+Toolchain fingerprint discovered corrupt
+E102:
+E100 invalidated
+History still says:
+E100 occurred
+Current truth says:
+E100 is no longer admissible evidence
+history ≠ current validity
+must remain explicit.
+Collected
+Bound
+Validated
+Available
+Used by verification
+May become invalidated
+Potential statuses:
+pub enum EvidenceValidity {
+Unvalidated,
+Valid,
+Invalid,
+Superseded,
+Keep this separate from outcome:
+Outcome:
+Validity:
+is perfectly coherent.
+A test may genuinely have passed while the evidence later becomes unusable because its artifact binding was discovered to be wrong.
+A successful execution does not imply a valid certification.
+Formally:
+ExecutionSuccess
+↛ EvidenceValid
+↛ ContractSatisfied
+↛ Verified
+↛ Certified
+The arrows require additional relations.
+This is one of the central protections against **verification theater**.
+The crate should not contain:
+pub fn certify(...)
+It should expose:
+pub fn validate_binding(...)
+pub fn validate_integrity(...)
+pub fn validate_scope(...)
+pub fn validate_epoch(...)
+pub fn validate_executor(...)
+and construct validated evidence.
+Certification belongs later.
+We now have:
+HUMAN AUTHORITY
+POLICY / SCOPE
+│   RFL-TYPES      │
+│ RFL-TRANSITION   │
+│   RFL-LEDGER     │
+│  RFL-EVIDENCE    │
+│   VERIFICATION   │
+│    RFL-GATES     │
+CERTIFICATE
+And only after this kernel is stable should the semantic machinery become a client:
+C analyzers
+KSIR
+Contracts
+Rust Design IR
+Rust generator
+RFL protocol
+The agents remain outside the authority boundary.
+The remaining kernel problem is now:
+Given verified evidence and dependencies, under what exact conditions may RFL-AE derive `TechnicalCertification`?
+That should **not** be a boolean `ready`.
+We need a gate algebra that preserves:
+PASS
+FAIL
+NOT_APPLICABLE
+INVALIDATED
+and distinguishes:
+required gate
+optional gate
+conditional gate
+dependency gate
+evidence-completeness gate
+scope gate
+provenance gate
+semantic-contract gate
+The next step is therefore to formalize **`rfl-gates` and the certification predicate**, including the critical rule:
+BLOCKED required gate
+≠ FAILED required gate
+but both
+⇒ NOT CERTIFIABLE
+Then we can connect the executable kernel to the **MigrationUnit → KSIR → Contract → Rust Design IR** pipeline without letting the semantic agents bypass the authority machinery.
